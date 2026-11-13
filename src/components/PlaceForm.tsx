@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { formatCoords, parseCoords } from '../geo';
+import { formatCoords } from '../geo';
+import { parseLocation } from '../import';
+import { reverseGeocode, searchOsm, searchWikipedia, type SearchResult } from '../search';
 import { sourcesToText, textToSources } from '../sources';
 import { uid } from '../store';
 import {
@@ -24,6 +26,7 @@ interface Props {
 }
 
 export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCancel }: Props) {
+  const editingExisting = place;
   const [name, setName] = useState(place?.name ?? '');
   const [type, setType] = useState<PlaceType>(place?.type ?? 'edificio');
   const [coords, setCoords] = useState(place ? formatCoords(place) : '');
@@ -46,6 +49,69 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
   );
   const [coordsTouched, setCoordsTouched] = useState(false);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchNote, setSearchNote] = useState('');
+
+  const search = async () => {
+    if (!query.trim() || searching) return;
+    setSearching(true);
+    setSearchNote('');
+    setResults([]);
+    // Cada fuente pinta sus resultados en cuanto llega, sin esperar a la otra.
+    const run = (find: (q: string) => Promise<SearchResult[]>) =>
+      find(query.trim()).then(
+        (found) => {
+          setResults((prev) => [...(prev ?? []), ...found]);
+          return found.length;
+        },
+        () => -1,
+      );
+    const [wiki, osm] = await Promise.all([run(searchWikipedia), run(searchOsm)]);
+    setSearching(false);
+    if (wiki < 0 && osm < 0) setSearchNote('No se ha podido buscar. Comprueba la conexión.');
+    else if (wiki <= 0 && osm <= 0) setSearchNote('Sin resultados. Prueba con otro nombre o añade el municipio.');
+    else if (wiki < 0) setSearchNote('Wikipedia no ha respondido; se muestran los resultados de OpenStreetMap.');
+    else if (osm < 0) setSearchNote('OpenStreetMap no ha respondido; se muestran los resultados de Wikipedia.');
+  };
+
+  /** Rellena con el resultado elegido, sin pisar lo que ya esté escrito salvo las coordenadas. */
+  const applyResult = async (r: SearchResult) => {
+    setResults(null);
+    if (!name.trim()) setName(r.title);
+    if (r.point) {
+      setCoords(formatCoords(r.point));
+      setCoordsTouched(true);
+    }
+    if (r.summary && !summary.trim()) setSummary(r.summary);
+    if (r.url && !sources.includes(r.url)) {
+      setSources((prev) => [prev.trim(), `Wikipedia: ${r.title} | ${r.url}`].filter(Boolean).join('\n'));
+    }
+    setSearchNote(
+      r.point
+        ? `Rellenado desde ${r.source}. Revisa los datos antes de guardar.`
+        : `Este artículo no trae coordenadas: se han añadido el resumen y la fuente. Sitúa el punto en el mapa.`,
+    );
+    const place = r.town || r.province || !r.point ? { town: r.town ?? '', province: r.province ?? '' } : await reverseGeocode(r.point);
+    if (place.town) setTown((prev) => prev.trim() || place.town);
+    // «Murcia» es solo el valor por defecto de un lugar nuevo: aquí manda el resultado.
+    if (place.province) setProvince((prev) => (prev.trim() && (prev !== 'Murcia' || !!editingExisting) ? prev : place.province));
+  };
+
+  /** Convierte un enlace de Google Maps o coordenadas en otro formato a «lat, lng». */
+  const normalizeCoords = (value: string) => {
+    try {
+      const located = parseLocation(value);
+      if (!located) return;
+      setCoords(formatCoords(located.point));
+      setCoordsTouched(true);
+      if (located.name && !name.trim()) setName(located.name);
+      setError('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '');
+    }
+  };
 
   useEffect(() => {
     if (picked) {
@@ -59,9 +125,14 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const point = parseCoords(coords);
+    let point = null;
+    try {
+      point = parseLocation(coords)?.point ?? null;
+    } catch (err) {
+      return setError(err instanceof Error ? err.message : '');
+    }
     if (!name.trim()) return setError('Ponle un nombre al lugar.');
-    if (!point) return setError('Indica las coordenadas como «latitud, longitud» o elígelas en el mapa.');
+    if (!point) return setError('Indica las coordenadas, pega un enlace de Google Maps o elige el punto en el mapa.');
     onSave({
       id: place?.id ?? uid(),
       name: name.trim(),
@@ -89,6 +160,55 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
         </button>
       </header>
 
+      <div className="search-box">
+        <label className="field">
+          Buscar el lugar para rellenar la ficha
+          <span className="row nowrap">
+            <input
+              className="input grow"
+              type="search"
+              value={query}
+              placeholder="Sanatorio Sierra Espuña"
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  search();
+                }
+              }}
+            />
+            <button type="button" className="btn" onClick={search} disabled={searching || !query.trim()}>
+              {searching ? 'Buscando…' : 'Buscar'}
+            </button>
+          </span>
+        </label>
+        {results && results.length > 0 && (
+          <ul className="results">
+            {/* Wikipedia primero: trae resumen y fuente además del punto. */}
+            {[...results]
+              .sort((a, b) => Number(b.source === 'Wikipedia') - Number(a.source === 'Wikipedia'))
+              .map((r) => (
+              <li key={r.key}>
+                <button type="button" className="result" onClick={() => applyResult(r)}>
+                  <span className="card-title">{r.title}</span>
+                  <span className="muted small">{r.detail}</span>
+                  <span className="tags">
+                    <span className="tag">{r.source}</span>
+                    {!r.point && <span className="tag own-desconocida">Sin coordenadas</span>}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {searchNote && (
+          <p className="muted small" role="status">
+            {searchNote}
+          </p>
+        )}
+        <p className="muted small">Busca en Wikipedia y OpenStreetMap; lo que escribas se envía a esos servicios.</p>
+      </div>
+
       <label className="field">
         Nombre
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -106,7 +226,7 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
       </label>
 
       <label className="field">
-        Coordenadas (latitud, longitud)
+        Coordenadas o enlace de Google Maps
         <input
           className="input"
           value={coords}
@@ -115,6 +235,15 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
           onChange={(e) => {
             setCoords(e.target.value);
             setCoordsTouched(true);
+          }}
+          onBlur={(e) => normalizeCoords(e.target.value)}
+          onPaste={(e) => {
+            const pasted = e.clipboardData.getData('text');
+            if (/https?:|°/.test(pasted)) {
+              e.preventDefault();
+              setCoords(pasted);
+              normalizeCoords(pasted);
+            }
           }}
         />
       </label>
