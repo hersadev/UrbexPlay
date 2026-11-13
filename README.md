@@ -14,10 +14,18 @@ npm run build    # compila a dist/
 npm run preview  # sirve dist/ (aquí funciona el modo sin conexión)
 ```
 
-Para probarla en el móvil dentro de la misma wifi: `npm run dev -- --host` y
-abre la dirección de red que muestra. La instalación como app y el modo sin
-conexión requieren HTTPS, es decir, publicarla (cualquier hosting estático
-sirve: basta subir `dist/`).
+Cada subida a `main` la publica en GitHub Pages
+(<https://hersadev.github.io/UrbexPlay/>) mediante
+`.github/workflows/publicar.yml`. Desde ahí se puede instalar en el móvil y
+usar sin cobertura, con GPS.
+
+## Sobre el terreno
+
+- **Posición en vivo**: el botón ⌖ del mapa sigue tu posición; «Guiarme», en la
+  ficha de un lugar, marca la distancia y el rumbo en línea recta hasta él.
+- **Mapa sin cobertura**: en cada salida, «Guardar mapa de esta salida» descarga
+  el topográfico y el satélite del IGN alrededor de las paradas. El callejero de
+  OpenStreetMap no se descarga porque su política de uso no lo permite.
 
 ## Datos
 
