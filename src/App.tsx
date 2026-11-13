@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CATALOG } from './catalog';
 import { emptyData, loadData, saveData, stampChanges } from './store';
+import { cardinal, distanceKm, formatKm } from './geo';
 import { loadSyncConfig, mergeRemote, pushPull, saveSyncConfig, type SyncConfig, type SyncStatus } from './sync';
-import type { Data, LatLng, Place } from './types';
+import type { Data, LatLng, Place, Position } from './types';
 import MapView, { type Focus } from './components/MapView';
 import PlaceList from './components/PlaceList';
 import PlaceDetail from './components/PlaceDetail';
@@ -32,7 +33,13 @@ export default function App() {
   const [picked, setPicked] = useState<LatLng | null>(null);
   const [visible, setVisible] = useState<Place[] | null>(null);
   const [openTripId, setOpenTripId] = useState<string | null>(null);
-  const [userPos, setUserPos] = useState<LatLng | null>(null);
+  const [userPos, setUserPos] = useState<Position | null>(null);
+  /** Seguimiento continuo del GPS activo. */
+  const [tracking, setTracking] = useState(false);
+  /** El mapa acompaña a la posición (se suelta al mover el mapa a mano). */
+  const [follow, setFollow] = useState(false);
+  /** Lugar hacia el que se guía. */
+  const [targetId, setTargetId] = useState<string | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [notice, setNotice] = useState('');
   /** En móvil: el mapa enseña la salida abierta en lugar de todos los lugares. */
@@ -129,21 +136,65 @@ export default function App() {
     setData((prev) => stampChanges(prev, fn(prev)));
   }, []);
 
-  const locate = useCallback(() => {
+  // Seguimiento del GPS mientras esté activo.
+  useEffect(() => {
+    if (!tracking) return;
     if (!navigator.geolocation) {
       setNotice('Este dispositivo no permite obtener la ubicación.');
+      setTracking(false);
       return;
     }
-    navigator.geolocation.getCurrentPosition(
+    const watch = navigator.geolocation.watchPosition(
       (pos) => {
-        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setUserPos(here);
-        setFocus({ ...here, zoom: 11, key: Date.now() });
+        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        // Ignora el temblor del GPS: solo cuenta si te has movido unos metros o mejora la precisión.
+        setUserPos((prev) =>
+          prev && distanceKm(prev, next) < 0.005 && Math.abs((prev.accuracy ?? 0) - next.accuracy) < 10 ? prev : next,
+        );
       },
-      () => setNotice('No se ha podido obtener tu ubicación. Revisa los permisos del navegador.'),
-      { enableHighAccuracy: true, timeout: 15000 },
+      (error) => {
+        setNotice(
+          error.code === error.PERMISSION_DENIED
+            ? 'No hay permiso para usar tu ubicación. Actívalo en los ajustes del navegador.'
+            : 'No se ha podido obtener tu ubicación.',
+        );
+        if (error.code === error.PERMISSION_DENIED) {
+          setTracking(false);
+          setTargetId(null);
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 },
     );
+    // Mantiene la pantalla encendida mientras se sigue la posición, donde el navegador lo permite.
+    let lock: WakeLockSentinel | undefined;
+    navigator.wakeLock?.request('screen').then((l) => (lock = l)).catch(() => {});
+    return () => {
+      navigator.geolocation.clearWatch(watch);
+      lock?.release().catch(() => {});
+    };
+  }, [tracking]);
+
+  const startTracking = useCallback(() => {
+    setTracking(true);
+    setFollow(true);
   }, []);
+
+  /** Botón de posición: activa, vuelve a centrar si el mapa se ha movido, o apaga. */
+  const toggleTracking = () => {
+    if (!tracking || !follow) return startTracking();
+    setTracking(false);
+    setFollow(false);
+    setTargetId(null);
+    setUserPos(null);
+  };
+
+  const guideTo = (id: string) => {
+    setTargetId(id);
+    setTracking(true);
+    setFollow(false);
+    setTripOnMap(false);
+    setTab('mapa');
+  };
 
   const openDetail = (id: string) => {
     setEditing(null);
@@ -196,6 +247,9 @@ export default function App() {
         : null,
     [showRoute, openTrip, byId],
   );
+
+  const target = targetId ? (byId.get(targetId) ?? null) : null;
+  const targetKm = target && userPos ? distanceKm(userPos, target) : null;
 
   // Con una salida abierta, el mapa enseña solo sus paradas.
   const mapPlaces = route && route.length ? route : (visible ?? places);
@@ -251,6 +305,7 @@ export default function App() {
             isCatalog={CATALOG_IDS.has(detail.id)}
             onBack={() => setDetailId(null)}
             onShowOnMap={() => showOnMap(detail)}
+            onGuide={() => guideTo(detail.id)}
             onEdit={() => setEditing(detail.id)}
             onRemove={() => removePlace(detail)}
             onRestore={() => restoreOriginal(detail.id)}
@@ -288,7 +343,7 @@ export default function App() {
             places={places}
             diary={data.diary}
             userPos={userPos}
-            onLocate={locate}
+            onLocate={startTracking}
             onOpen={openDetail}
             onAdd={() => setEditing('nuevo')}
             onVisible={setVisible}
@@ -302,6 +357,9 @@ export default function App() {
           diary={data.diary}
           route={route}
           userPos={userPos}
+          follow={follow}
+          target={target}
+          onUserPan={() => setFollow(false)}
           focus={focus}
           picking={picking}
           onPick={(p) => {
@@ -310,9 +368,33 @@ export default function App() {
           }}
           onOpen={openDetail}
         />
-        <button className="fab" onClick={locate} title="Mi posición" aria-label="Centrar en mi posición">
+        <button
+          className={`fab${tracking ? (follow ? ' on' : ' loose') : ''}`}
+          onClick={toggleTracking}
+          aria-pressed={tracking}
+          title={!tracking ? 'Seguir mi posición' : follow ? 'Dejar de seguir mi posición' : 'Volver a centrar en mi posición'}
+          aria-label={!tracking ? 'Seguir mi posición' : follow ? 'Dejar de seguir mi posición' : 'Volver a centrar en mi posición'}
+        >
           ⌖
         </button>
+        {target && !picking && (
+          <div className="banner guide" role="status">
+            <span className="guide-text">
+              <strong>{target.name}</strong>
+              {targetKm === null
+                ? 'Buscando tu posición…'
+                : targetKm < 0.03
+                  ? 'Has llegado'
+                  : `${formatKm(targetKm)} al ${cardinal(userPos!, target)} en línea recta`}
+              {userPos?.accuracy && userPos.accuracy > 50 && (
+                <span className="muted small">GPS poco preciso (±{Math.round(userPos.accuracy)} m)</span>
+              )}
+            </span>
+            <button className="btn small" onClick={() => setTargetId(null)}>
+              Terminar
+            </button>
+          </div>
+        )}
         {picking && (
           <div className="banner">
             Toca el mapa para situar el lugar

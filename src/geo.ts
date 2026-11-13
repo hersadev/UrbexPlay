@@ -11,6 +11,19 @@ export function distanceKm(a: LatLng, b: LatLng): number {
   return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 
+const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+
+/** Rumbo de `a` hacia `b` como punto cardinal (N, NE, E…). */
+export function cardinal(a: LatLng, b: LatLng): string {
+  const rad = Math.PI / 180;
+  const dLng = (b.lng - a.lng) * rad;
+  const y = Math.sin(dLng) * Math.cos(b.lat * rad);
+  const x =
+    Math.cos(a.lat * rad) * Math.sin(b.lat * rad) - Math.sin(a.lat * rad) * Math.cos(b.lat * rad) * Math.cos(dLng);
+  const degrees = (Math.atan2(y, x) / rad + 360) % 360;
+  return CARDINALS[Math.round(degrees / 45) % 8];
+}
+
 export function formatKm(km: number): string {
   if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} km`;

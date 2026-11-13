@@ -89,6 +89,11 @@ export interface LatLng {
   lng: number;
 }
 
+export interface Position extends LatLng {
+  /** Margen de error del GPS, en metros. */
+  accuracy?: number;
+}
+
 export const TYPE_META: Record<PlaceType, { label: string; color: string; glyph: string }> = {
   pueblo: { label: 'Pueblo abandonado', color: '#c2703d', glyph: '⌂' },
   edificio: { label: 'Edificio abandonado', color: '#8e6bbf', glyph: '▦' },

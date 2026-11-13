@@ -21,6 +21,7 @@ interface Props {
   isCatalog: boolean;
   onBack: () => void;
   onShowOnMap: () => void;
+  onGuide: () => void;
   onEdit: () => void;
   onRemove: () => void;
   onRestore: () => void;
@@ -65,6 +66,7 @@ export default function PlaceDetail({
   isCatalog,
   onBack,
   onShowOnMap,
+  onGuide,
   onEdit,
   onRemove,
   onRestore,
@@ -184,6 +186,9 @@ export default function PlaceDetail({
       <div className="row">
         <button className="btn" onClick={onShowOnMap}>
           Ver en el mapa
+        </button>
+        <button className="btn" onClick={onGuide} title="Sigue tu posición y marca la distancia y el rumbo hasta el lugar">
+          ⌖ Guiarme
         </button>
         <a className="btn" href={googleMapsRoute([place])} target="_blank" rel="noreferrer">
           Cómo llegar ↗
