@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CATALOG } from './catalog';
+import { CATALOG, isCatalogId, isOriginal } from './catalog';
 import { emptyData, loadData, saveData, stampChanges } from './store';
 import { cardinal, distanceKm, formatKm } from './geo';
 import { loadSyncConfig, mergeRemote, pushPull, saveSyncConfig, type SyncConfig, type SyncStatus } from './sync';
@@ -8,6 +8,7 @@ import MapView, { type Focus } from './components/MapView';
 import PlaceList from './components/PlaceList';
 import PlaceDetail from './components/PlaceDetail';
 import PlaceForm from './components/PlaceForm';
+import ImportPlaces from './components/ImportPlaces';
 import Trips from './components/Trips';
 import Settings from './components/Settings';
 
@@ -29,6 +30,7 @@ export default function App() {
   const [detailId, setDetailId] = useState<string | null>(null);
   /** `null` = sin formulario; 'nuevo' o el id del lugar que se edita. */
   const [editing, setEditing] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<LatLng | null>(null);
   const [visible, setVisible] = useState<Place[] | null>(null);
@@ -221,6 +223,26 @@ export default function App() {
     setTab('lugares');
   };
 
+  const importPlaces = (list: Place[]) => {
+    update((d) => ({ ...d, custom: [...d.custom, ...list] }));
+    setImporting(false);
+    setNotice(`${list.length} ${list.length === 1 ? 'lugar importado' : 'lugares importados'}.`);
+  };
+
+  /** Copia a los datos propios los lugares del catálogo que aún no lo están, para que viajen a la hoja. */
+  const copyCatalog = () => {
+    update((d) => {
+      const have = new Set(d.custom.map((p) => p.id));
+      const hidden = new Set(d.hidden);
+      const missing = CATALOG.filter((p) => !have.has(p.id) && !hidden.has(p.id)).map((p) => ({ ...p, custom: true }));
+      return missing.length ? { ...d, custom: [...d.custom, ...missing] } : d;
+    });
+  };
+  const catalogPending = useMemo(() => {
+    const have = new Set(data.custom.map((p) => p.id));
+    return CATALOG.filter((p) => !have.has(p.id) && !data.hidden.includes(p.id)).length;
+  }, [data.custom, data.hidden]);
+
   const removePlace = (place: Place) => {
     update((d) => {
       const { [place.id]: _gone, ...diary } = d.diary;
@@ -269,6 +291,7 @@ export default function App() {
             aria-current={tab === t.id ? 'page' : undefined}
             onClick={() => {
               setTab(t.id);
+              setImporting(false);
               setPicking(false);
               setTripOnMap(false);
             }}
@@ -282,7 +305,9 @@ export default function App() {
       </nav>
 
       <main className="panel" hidden={panelHidden}>
-        {editing ? (
+        {importing ? (
+          <ImportPlaces places={places} onImport={importPlaces} onCancel={() => setImporting(false)} />
+        ) : editing ? (
           <PlaceForm
             key={editing}
             place={editing === 'nuevo' ? undefined : byId.get(editing)}
@@ -302,7 +327,8 @@ export default function App() {
             data={data}
             update={update}
             userPos={userPos}
-            isCatalog={CATALOG_IDS.has(detail.id)}
+            isCatalog={isCatalogId(detail.id)}
+            original={isOriginal(detail)}
             onBack={() => setDetailId(null)}
             onShowOnMap={() => showOnMap(detail)}
             onGuide={() => guideTo(detail.id)}
@@ -335,10 +361,12 @@ export default function App() {
             syncStatus={syncStatus}
             onSyncConfig={changeSyncConfig}
             onSync={syncNow}
+            catalogPending={catalogPending}
+            onCopyCatalog={copyCatalog}
           />
         ) : null}
         {/* La lista sigue montada para no perder los filtros al abrir una ficha. */}
-        <div hidden={!!editing || tab !== 'lugares' || !!detail}>
+        <div hidden={importing || !!editing || tab !== 'lugares' || !!detail}>
           <PlaceList
             places={places}
             diary={data.diary}
@@ -346,6 +374,7 @@ export default function App() {
             onLocate={startTracking}
             onOpen={openDetail}
             onAdd={() => setEditing('nuevo')}
+            onImport={() => setImporting(true)}
             onVisible={setVisible}
           />
         </div>

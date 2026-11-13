@@ -19,6 +19,8 @@ interface Props {
   update: (fn: (d: Data) => Data) => void;
   userPos: LatLng | null;
   isCatalog: boolean;
+  /** Ficha del catálogo que nadie ha cambiado. */
+  original: boolean;
   onBack: () => void;
   onShowOnMap: () => void;
   onGuide: () => void;
@@ -64,6 +66,7 @@ export default function PlaceDetail({
   update,
   userPos,
   isCatalog,
+  original,
   onBack,
   onShowOnMap,
   onGuide,
@@ -143,7 +146,7 @@ export default function PlaceDetail({
   };
 
   const inTrips = data.trips.filter((t) => t.placeIds.includes(place.id));
-  const edited = isCatalog && place.custom;
+  const edited = isCatalog && !original;
 
   const remove = () => {
     const message = isCatalog
@@ -302,7 +305,7 @@ export default function PlaceDetail({
             {place.approx && <span className="tag own-desconocida">Aproximadas</span>}
           </dd>
         </dl>
-        {!place.custom && (
+        {original && (
           <p className="muted small">
             Datos orientativos del catálogo: el estado, los accesos y la titularidad cambian. Confírmalos antes de ir y
             corrige la ficha con lo que veas.

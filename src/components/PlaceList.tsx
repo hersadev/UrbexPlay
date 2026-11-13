@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { isCatalogId } from '../catalog';
 import { distanceKm, formatKm } from '../geo';
 import { TYPE_META, TYPES, type Diary, type LatLng, type Place, type PlaceType, type Status } from '../types';
 
@@ -9,6 +10,7 @@ interface Props {
   onLocate: () => void;
   onOpen: (id: string) => void;
   onAdd: () => void;
+  onImport: () => void;
   /** Informa de los lugares que pasan el filtro, para pintar solo esos en el mapa. */
   onVisible: (places: Place[]) => void;
 }
@@ -21,7 +23,7 @@ const normalize = (s: string) =>
 
 const RADII = [0, 25, 50, 100, 200];
 
-export default function PlaceList({ places, diary, userPos, onLocate, onOpen, onAdd, onVisible }: Props) {
+export default function PlaceList({ places, diary, userPos, onLocate, onOpen, onAdd, onImport, onVisible }: Props) {
   const [query, setQuery] = useState('');
   const [types, setTypes] = useState<Set<PlaceType>>(new Set());
   const [province, setProvince] = useState('');
@@ -66,9 +68,14 @@ export default function PlaceList({ places, diary, userPos, onLocate, onOpen, on
     <div className="view">
       <header className="view-head">
         <h1>Lugares</h1>
-        <button className="btn primary" onClick={onAdd}>
-          + Añadir
-        </button>
+        <span className="row">
+          <button className="btn" onClick={onImport}>
+            Importar
+          </button>
+          <button className="btn primary" onClick={onAdd}>
+            + Añadir
+          </button>
+        </span>
       </header>
 
       <input
@@ -176,7 +183,7 @@ export default function PlaceList({ places, diary, userPos, onLocate, onOpen, on
                   <span className="tags">
                     {st !== 'ninguno' && <span className={`tag ${st}`}>{st === 'visitado' ? 'Visitado' : 'Pendiente'}</span>}
                     {place.legend.trim() && <span className="tag">Leyenda</span>}
-                    {place.custom && <span className="tag">Mío</span>}
+                    {place.custom && !isCatalogId(place.id) && <span className="tag">Mío</span>}
                   </span>
                 </span>
               </button>

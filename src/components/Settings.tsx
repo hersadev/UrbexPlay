@@ -15,16 +15,21 @@ interface Props {
   syncStatus: SyncStatus;
   onSyncConfig: (config: SyncConfig | null) => void;
   onSync: () => void;
+  /** Lugares del catálogo que todavía no están en la hoja. */
+  catalogPending: number;
+  onCopyCatalog: () => void;
 }
 
 const time = (ms: number) => new Date(ms).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-function SyncSection({ config, status, onConfig, onSync, setNotice }: {
+function SyncSection({ config, status, onConfig, onSync, setNotice, catalogPending, onCopyCatalog }: {
   config: SyncConfig | null;
   status: SyncStatus;
   onConfig: (config: SyncConfig | null) => void;
   onSync: () => void;
   setNotice: (text: string) => void;
+  catalogPending: number;
+  onCopyCatalog: () => void;
 }) {
   const [url, setUrl] = useState(config?.url ?? '');
   const [key, setKey] = useState(config?.key ?? '');
@@ -76,6 +81,31 @@ function SyncSection({ config, status, onConfig, onSync, setNotice }: {
               Desconectar
             </button>
           </div>
+          <h3>Catálogo en la hoja</h3>
+          {catalogPending > 0 ? (
+            <>
+              <p className="prose">
+                {catalogPending === 1
+                  ? 'Hay 1 lugar del catálogo inicial que no está en la hoja.'
+                  : `Hay ${catalogPending} lugares del catálogo inicial que no están en la hoja.`}{' '}
+                Pásalos para poder editarlos todos desde Google Sheets.
+              </p>
+              <div className="row">
+                <button
+                  className="btn"
+                  onClick={() =>
+                    confirm(
+                      'Se copiarán a la hoja los lugares del catálogo. A partir de ahí manda la hoja: si más adelante la app mejora una de esas fichas, no cambiará la tuya. ¿Continuar?',
+                    ) && onCopyCatalog()
+                  }
+                >
+                  Pasar el catálogo a la hoja
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="muted">Todo el catálogo está en la hoja, en la pestaña «Lugares».</p>
+          )}
           <p className="muted small">
             Se sincroniza sola al abrir la app y tras cada cambio. Las fotos no se suben: se quedan en el dispositivo
             donde las hiciste. Para borrar algo desde la hoja, escribe TRUE en su columna «borrado».
@@ -135,7 +165,18 @@ function SyncSection({ config, status, onConfig, onSync, setNotice }: {
   );
 }
 
-export default function Settings({ data, setData, placeCount, setNotice, syncConfig, syncStatus, onSyncConfig, onSync }: Props) {
+export default function Settings({
+  data,
+  setData,
+  placeCount,
+  setNotice,
+  syncConfig,
+  syncStatus,
+  onSyncConfig,
+  onSync,
+  catalogPending,
+  onCopyCatalog,
+}: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [tiles, setTiles] = useState(0);
@@ -211,6 +252,8 @@ export default function Settings({ data, setData, placeCount, setNotice, syncCon
         onConfig={onSyncConfig}
         onSync={onSync}
         setNotice={setNotice}
+        catalogPending={catalogPending}
+        onCopyCatalog={onCopyCatalog}
       />
 
       <section>

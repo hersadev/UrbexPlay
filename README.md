@@ -27,6 +27,18 @@ usar sin cobertura, con GPS.
   el topográfico y el satélite del IGN alrededor de las paradas. El callejero de
   OpenStreetMap no se descarga porque su política de uso no lo permite.
 
+## Añadir lugares
+
+- **Buscar**: al crear un lugar, el buscador consulta Wikipedia y OpenStreetMap
+  y rellena nombre, coordenadas, municipio, resumen y fuente. Lo que se escribe
+  en el buscador se envía a esos dos servicios.
+- **Pegar**: el campo de coordenadas acepta un enlace largo de Google Maps o
+  coordenadas en cualquier formato habitual. Los enlaces cortos
+  (`maps.app.goo.gl`) no sirven porque no llevan las coordenadas.
+- **Importar**: desde la lista de lugares, «Importar» lee ficheros KML, GPX y
+  GeoJSON (solo los puntos) o una lista pegada de enlaces y coordenadas. Los KMZ
+  no: en Google My Maps hay que exportar como KML.
+
 ## Datos
 
 - Todo se guarda en el navegador (IndexedDB). Desde **Ajustes** se exporta e
@@ -64,6 +76,12 @@ El script crea las pestañas `Lugares`, `Diario`, `Salidas` y `Ocultos`. Se pued
 editar la hoja a mano: una fila nueva en `Lugares` con nombre, `lat` y `lng`
 aparece en la app en la siguiente sincronización. Para borrar, escribe `TRUE`
 en la columna `borrado` en lugar de eliminar la fila.
+
+Los lugares del catálogo inicial solo están en la hoja si se editan o si se
+pulsa «Pasar el catálogo a la hoja» en Ajustes. Una vez allí manda la hoja: los
+cambios posteriores del catálogo en el código no modifican esas fichas. Marcar
+`borrado` en un lugar del catálogo lo devuelve a su versión original; para que
+deje de verse hay que ocultarlo desde la app.
 
 En cada registro gana el último cambio. Quien conozca la URL y la clave puede
 leer y escribir los datos: no las publiques. Si cambias el script, hay que

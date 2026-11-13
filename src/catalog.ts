@@ -1,3 +1,4 @@
+import { sourcesToText } from './sources';
 import type { Place, Practical } from './types';
 
 /*
@@ -678,3 +679,21 @@ export const CATALOG: Place[] = [
     }),
   },
 ];
+
+const BY_ID = new Map(CATALOG.map((p) => [p.id, p]));
+
+export const isCatalogId = (id: string) => BY_ID.has(id);
+
+/** Contenido de una ficha sin los detalles que cambian al pasar por la hoja. */
+const content = (p: Place) =>
+  JSON.stringify([
+    p.name, p.type, p.lat, p.lng, !!p.approx, p.town, p.province, p.summary, p.history, p.legend,
+    sourcesToText(p.sources), p.practical.state, p.practical.access, p.practical.ownership,
+    p.practical.difficulty, p.practical.risks, p.practical.parking, p.practical.gear,
+  ]);
+
+/** La ficha es del catálogo y nadie la ha cambiado (aunque viva ya en la hoja). */
+export function isOriginal(place: Place): boolean {
+  const original = BY_ID.get(place.id);
+  return !!original && content(original) === content(place);
+}
