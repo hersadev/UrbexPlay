@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CATALOG } from '../catalog';
 import script from '../../google-apps-script/Code.gs?raw';
+import { clearSavedMaps, estimateMb, savedTileCount } from '../offline';
 import { exportBackup, importBackup } from '../store';
 import { isScriptUrl, type SyncConfig, type SyncStatus } from '../sync';
 import type { Data } from '../types';
@@ -137,6 +138,11 @@ function SyncSection({ config, status, onConfig, onSync, setNotice }: {
 export default function Settings({ data, setData, placeCount, setNotice, syncConfig, syncStatus, onSyncConfig, onSync }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [tiles, setTiles] = useState(0);
+
+  useEffect(() => {
+    savedTileCount().then(setTiles).catch(() => {});
+  }, []);
 
   const visited = Object.values(data.diary).filter((d) => d.status === 'visitado').length;
   const pending = Object.values(data.diary).filter((d) => d.status === 'pendiente').length;
@@ -256,9 +262,27 @@ export default function Settings({ data, setData, placeCount, setNotice, syncCon
         <h2>Uso sin cobertura</h2>
         <p className="prose">
           Instala la app desde el menú del navegador («Añadir a pantalla de inicio»). Las fichas, tu diario y tus salidas
-          funcionan sin conexión. Del mapa solo se guardan las zonas que hayas visto antes: recorre la zona de la salida
-          con el zoom que vayas a usar mientras tengas wifi.
+          funcionan sin conexión. Para el mapa, abre la salida y pulsa «Guardar mapa de esta salida» mientras tengas
+          wifi; además se conservan las zonas que hayas visto hace poco.
         </p>
+        <p className="prose">
+          {tiles
+            ? `Mapas guardados: ${tiles} teselas, unos ${estimateMb(tiles)} MB.`
+            : 'No hay mapas guardados en este dispositivo.'}
+        </p>
+        {tiles > 0 && (
+          <div className="row">
+            <button
+              className="btn danger"
+              onClick={() =>
+                confirm('¿Borrar todos los mapas guardados de este dispositivo?') &&
+                clearSavedMaps().then(() => setTiles(0))
+              }
+            >
+              Borrar mapas guardados
+            </button>
+          </div>
+        )}
       </section>
 
       <section>

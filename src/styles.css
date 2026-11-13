@@ -798,3 +798,43 @@ textarea.input {
 .nav-btn.alert .nav-icon {
   color: var(--danger);
 }
+
+/* ── Posición en vivo y guía ── */
+
+.fab.on {
+  background: #2b7fff;
+  border-color: #2b7fff;
+  color: #fff;
+}
+.fab.loose {
+  border-color: #2b7fff;
+  color: #2b7fff;
+}
+/* Abajo, entre el botón de posición y el zoom: arriba taparía el selector de capas. */
+.banner.guide {
+  top: auto;
+  bottom: 22px;
+  left: 66px;
+  right: 58px;
+  transform: none;
+  max-width: none;
+  justify-content: space-between;
+}
+.guide-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+.guide-text strong {
+  font-family: var(--serif);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--accent);
+}

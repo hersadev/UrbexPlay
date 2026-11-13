@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { distanceKm, formatKm, googleMapsRoute, nearestOrder, pathKm } from '../geo';
+import { loadSavedMaps, saveSavedMaps } from '../offline';
 import { uid } from '../store';
+import TripMap from './TripMap';
 import { OWNERSHIP_LABEL, TYPE_META, type Data, type Place, type Trip } from '../types';
 
 interface Props {
@@ -86,6 +88,7 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
   const remove = () => {
     if (!confirm(`¿Eliminar la salida «${trip.name || 'sin nombre'}»? Los lugares no se borran.`)) return;
     update((d) => ({ ...d, trips: d.trips.filter((t) => t.id !== trip.id) }));
+    loadSavedMaps().then(({ [trip.id]: _gone, ...rest }) => saveSavedMaps(rest));
     setOpenId(null);
   };
 
@@ -214,6 +217,8 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
           </ul>
         </div>
       )}
+
+      <TripMap tripId={trip.id} stops={stops} />
 
       <label className="field">
         Notas de la salida
