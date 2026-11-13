@@ -39,16 +39,6 @@ const pair = (p: LatLng) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
 
 export const formatCoords = (p: LatLng) => `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
 
-/** Acepta «37.86, -1.51» (o con espacios / punto y coma). */
-export function parseCoords(text: string): LatLng | null {
-  const m = text.trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
-  if (!m) return null;
-  const lat = Number(m[1]);
-  const lng = Number(m[2]);
-  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-  return { lat, lng };
-}
-
 /** Ruta en Google Maps desde la posición actual pasando por los puntos en orden. */
 export function googleMapsRoute(points: LatLng[]): string {
   if (points.length === 0) return 'https://www.google.com/maps';
