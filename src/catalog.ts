@@ -7,6 +7,8 @@ import type { Place, Practical } from './types';
  * - Historia y coordenadas proceden de los artículos de Wikipedia enlazados en
  *   cada ficha (consultados en noviembre de 2026). Las coordenadas marcadas con
  *   `approx` no vienen del artículo y son orientativas.
+ * - Las fichas que citan prensa, blogs o estudios sacan de ahí la historia; sus
+ *   coordenadas son las del lugar en Wikipedia o en OpenStreetMap.
  * - «legend» recoge lo que se cuenta, no hechos comprobados.
  * - La ficha práctica es orientativa: el estado, los accesos y la titularidad
  *   cambian. Hay que confirmarlos antes de cada salida.
@@ -1098,6 +1100,412 @@ export const CATALOG: Place[] = [
     }),
   },
 
+  // Tanda de prensa local, blogs y Lista Roja (noviembre de 2026).
+  {
+    id: 'casa-antonete-galvez',
+    name: 'Casa de Antonete Gálvez',
+    type: 'edificio',
+    lat: 37.97831,
+    lng: -1.06106,
+    town: 'Murcia (Torreagüera)',
+    province: 'Murcia',
+    summary: 'Casa huertana en ruina del líder de la revolución cantonal de 1873, en el Huerto de San Blas.',
+    history:
+      'Casa típica de la huerta de Murcia, del siglo XVIII, dentro de la finca del Huerto de San Blas. Perteneció a la Orden Hospitalaria de San Juan de Dios, asentada en la zona al menos desde 1721, hasta que la desamortización de Mendizábal la sacó a la venta en 1836-37. Fue después la casa de Antonio Gálvez Arce, «Antonete» (1819-1898), labrador y revolucionario federal, protagonista de la rebelión cantonal de 1873; aquí se prepararon los levantamientos de 1869 y 1872. Está protegida por el plan general de Murcia y figura en la Lista Roja del Patrimonio de Hispania Nostra.',
+    legend: '',
+    sources: [
+      wiki('Casa de Antonete Gálvez'),
+      {
+        title: 'Murcia Today: monumentos de Murcia en la Lista Roja (2022)',
+        url: 'https://murciatoday.com/4-historic-monuments-and-heritage-sites-in-murcia-at-risk-of-disappearing_1737148-a.html',
+      },
+    ],
+    practical: practical({
+      state: 'En ruina total, con la finca abandonada (según la prensa en 2022).',
+      access: 'Junto a la avenida de San Javier, a la salida de Torreagüera. Se ve desde fuera.',
+      ownership: 'desconocida',
+      difficulty: 1,
+      risks: 'Muros y cubiertas a punto de caer. No entrar.',
+    }),
+  },
+  {
+    id: 'pozos-nieve-sierra-espuna',
+    name: 'Pozos de la nieve de Sierra Espuña',
+    type: 'patrimonio',
+    lat: 37.86934,
+    lng: -1.57203,
+    town: 'Totana',
+    province: 'Murcia',
+    summary: 'Casi una treintena de pozos de piedra a 1.400 m donde se guardaba nieve para venderla como hielo en verano.',
+    history:
+      'Desde el siglo XVI y hasta 1926, cuando abrió una fábrica de hielo en Totana, en lo alto de Sierra Espuña se recogía la nieve del invierno en grandes pozos circulares de piedra para venderla como hielo durante el verano. Quedan 28 pozos repartidos en dos núcleos, la mayoría con la cúpula hundida. En 2022 el conjunto se declaró bien de interés cultural, como lugar de interés etnográfico, y se han restaurado algunos pozos: uno con técnicas tradicionales y otro con una pasarela para asomarse al interior.',
+    legend: '',
+    sources: [
+      {
+        title: 'Escapada Rural: la fábrica de hielo de Sierra Espuña',
+        url: 'https://www.escapadarural.com/blog/fabrica-de-hielo-en-sierra-espuna/',
+      },
+      {
+        title: 'BORM: declaración de bien de interés cultural (2022)',
+        url: 'https://www.borm.es/services/anuncio/ano/2022/numero/5838/pdf',
+      },
+      {
+        title: 'Murcia Today: Pozos de nieve, the snow wells of Sierra Espuña',
+        url: 'https://murciatoday.com/pozos-de-nieve-the-snow-wells-of-sierra-espuña_931460-a.html',
+      },
+    ],
+    practical: practical({
+      state: 'La mayoría en ruina; unos pocos restaurados y visitables.',
+      access: 'Se sube en coche hasta el collado Bermejo; desde allí, ruta circular a pie de unos 6 km.',
+      ownership: 'publica',
+      difficulty: 2,
+      risks: 'Pozos abiertos de varios metros de caída. En invierno, hielo y nieve en la carretera.',
+      parking: 'Mirador del collado Bermejo.',
+      gear: 'Calzado de montaña, agua y abrigo.',
+    }),
+  },
+  {
+    id: 'el-menju',
+    name: 'El Menjú',
+    type: 'industrial',
+    lat: 38.21536,
+    lng: -1.41436,
+    approx: true,
+    town: 'Cieza',
+    province: 'Murcia',
+    summary: 'Finca con jardines y una central hidroeléctrica abandonadas a orillas del Segura.',
+    history:
+      'Finca a la orilla del Segura, aguas abajo de Cieza, que aprovechaba un salto del río para producir electricidad: su concesión permitía derivar 8.000 litros por segundo. En 2010 la Confederación Hidrográfica del Segura dio por extinguido el aprovechamiento al comprobar que la central llevaba tiempo parada y que el edificio y la maquinaria estaban abandonados y en ruina. La finca fue conocida por sus jardines; el Museo de Siyasa le dedicó en 2018 la exposición «El Menjú, patrimonio cultural de Cieza», y la Universidad de Murcia ha estudiado cómo recuperarla.',
+    legend: '',
+    sources: [
+      {
+        title: 'iAgua: cesa la explotación hidroeléctrica de El Menjú por abandono (2010)',
+        url: 'https://www.iagua.es/2010/03/cesa-la-explotacion-hidroelectrica-de-el-menju-en-cieza-por-abandono',
+      },
+      {
+        title: 'Universidad de Murcia: análisis y propuesta de recuperación del Menjú',
+        url: 'https://digitum.um.es/digitum/handle/10201/47980',
+      },
+    ],
+    practical: practical({
+      state: 'Edificios y jardines muy deteriorados.',
+      access: 'Por la senda del Menjú, que sigue la orilla del río desde Cieza. Confirma si la finca se puede pisar.',
+      ownership: 'desconocida',
+      difficulty: 2,
+      risks: 'Edificios en ruina, canales y orilla del río sin proteger.',
+    }),
+  },
+  {
+    id: 'minas-gilico',
+    name: 'Minas y baños de Gilico',
+    type: 'industrial',
+    lat: 38.1392,
+    lng: -1.65615,
+    town: 'Cehegín y Calasparra',
+    province: 'Murcia',
+    summary: 'Una mina a cielo abierto convertida en lago y, cerca, las ruinas de unos baños termales.',
+    history:
+      'Gilico es un paraje de los campos del Cagitán, entre Cehegín y Calasparra. La gran roza a cielo abierto de la mina quedó inundada por una avenida del río Quípar y hoy es un lago. En la parte de Calasparra están los Baños de Gilico, también llamados de San José por el manantial al que se atribuían propiedades curativas y que quizá ya conocieron los romanos; sirvieron durante años de parada y fonda para ganaderos y viajeros y se abandonaron a mediados del siglo XX. Por las sendas de la zona quedan caseríos del siglo XIX deshabitados.',
+    legend: '',
+    sources: [wiki('Gilico')],
+    practical: practical({
+      state: 'Mina inundada; baños en ruina, junto a una explotación ganadera.',
+      access:
+        'Desde Calasparra por la carretera de Mula (MU-552) hasta los Baños de Gilico; allí sale a la derecha un camino de tierra hacia las minas.',
+      ownership: 'privada',
+      difficulty: 2,
+      risks: 'Taludes inestables y agua profunda: no bañarse. Sigue habiendo actividad minera en la zona.',
+    }),
+  },
+  {
+    id: 'monte-arabi',
+    name: 'Monte Arabí',
+    type: 'leyenda',
+    lat: 38.69722,
+    lng: -1.2825,
+    town: 'Yecla',
+    province: 'Murcia',
+    summary: 'Monte aislado con pinturas rupestres, petroglifos y un poblado de la Edad del Bronce, rodeado de leyendas.',
+    history:
+      'Elevación aislada de 1.068 m, monumento natural desde 2016. En sus abrigos hay pinturas rupestres y, al pie del cerro vecino del Arabilejo, más de cincuenta grupos de petroglifos de cazoletas y canalillos a lo largo de 340 m. Sobre el Arabilejo quedan las ruinas de un poblado amurallado de la Edad del Bronce, presidido por una gran roca con un calderón natural al que llegan canalillos tallados.',
+    legend:
+      'Es el lugar con más fama de misterio del Altiplano: se habla de un magnetismo especial en torno a las pinturas, de sucesos inexplicables y de una cueva que guardaría un tesoro sin descubrir. Nada de ello está documentado.',
+    sources: [
+      wiki('Monte Arabí'),
+      {
+        title: 'Murcia Today: 10 haunted places in Murcia',
+        url: 'https://murciatoday.com/10-haunted-places-in-murcia-to-visit-or-at-least-know-about-this-halloween_1848602-a.html',
+      },
+    ],
+    practical: practical({
+      state: 'Espacio natural protegido.',
+      access: 'Al norte de Yecla, por carretera local y pista. Pregunta en Yecla por las visitas guiadas a las pinturas.',
+      ownership: 'desconocida',
+      difficulty: 1,
+      risks: 'Poca sombra y sin agua.',
+      gear: 'Agua y gorra.',
+    }),
+  },
+  {
+    id: 'castillo-pliego',
+    name: 'Castillo de Pliego',
+    type: 'patrimonio',
+    lat: 37.99083,
+    lng: -1.49778,
+    town: 'Pliego',
+    province: 'Murcia',
+    summary: 'Fortaleza andalusí de tapial, muy arruinada, sobre el cerro que domina el pueblo.',
+    history:
+      'Se cree que se levantó en el siglo XII. Es una fortaleza de planta casi triangular, con siete torres y un torreón mayor, rodeada por un muro exterior de tapial. Está muy deteriorada, aunque ha tenido obras de restauración.',
+    legend: '',
+    sources: [wiki('Castillo de Pliego')],
+    practical: practical({
+      state: 'En ruina, con restauraciones parciales.',
+      access: 'En el cerro al este del pueblo; se sube a pie.',
+      ownership: 'desconocida',
+      difficulty: 1,
+      risks: 'Muros de tapial sueltos y cortados sin proteger.',
+    }),
+  },
+  {
+    id: 'isla-del-fraile',
+    name: 'Isla del Fraile',
+    type: 'naturaleza',
+    lat: 37.40855,
+    lng: -1.54654,
+    town: 'Águilas',
+    province: 'Murcia',
+    summary: 'Islote escarpado frente a la costa de Águilas, con restos de una factoría romana de salazones.',
+    history:
+      'Isla pedregosa de 6,8 hectáreas al este de Águilas, espacio natural protegido. En época romana albergó una fábrica de salsas de pescado. Sus fondos, con praderas de posidonia, están entre los más ricos del sudeste, y en la isla cría una colonia de gaviotas.',
+    legend:
+      'En la isla quedan también ruinas de construcciones más recientes, que la tradición local atribuye a un británico que se instaló allí a principios del siglo XX.',
+    sources: [wiki('Isla del Fraile')],
+    practical: practical({
+      state: 'Deshabitada, con ruinas dispersas.',
+      access: 'Se ve desde la playa de enfrente. No hay paso a pie: solo se llega por mar, y al ser espacio protegido conviene confirmar antes si se permite desembarcar.',
+      ownership: 'desconocida',
+      difficulty: 3,
+      risks: 'Travesía por mar y terreno escarpado.',
+    }),
+  },
+
+  // Añadidos con ubicación aproximada o con pocos datos: confirmar sobre el terreno.
+  {
+    id: 'tunel-jose-maestre',
+    name: 'Túnel José Maestre',
+    type: 'industrial',
+    lat: 37.58818,
+    lng: -0.84652,
+    approx: true,
+    town: 'La Unión (Portmán)',
+    province: 'Murcia',
+    summary: 'Túnel del tren minero de Portmán, convertido en cementerio de locomotoras y vagonetas.',
+    history:
+      'Por este túnel circulaba el tren minero que bajaba el mineral de la sierra hasta Portmán, en servicio hasta los años ochenta. Dentro quedaron abandonadas locomotoras y vagonetas. Un estudio de la Universidad de Murcia sobre la regeneración de la bahía lo trata como una de sus unidades ambientales.',
+    legend: 'La prensa local lo incluye entre los lugares «con misterio» de la Región, sin leyenda concreta.',
+    sources: [
+      {
+        title: 'Murcia Today: 10 haunted places in Murcia',
+        url: 'https://murciatoday.com/10-haunted-places-in-murcia-to-visit-or-at-least-know-about-this-halloween_1848602-a.html',
+      },
+      {
+        title: 'Universidad de Murcia: trabajo sobre la regeneración de Portmán (2024)',
+        url: 'https://digitum.um.es/digitum/bitstream/10201/139968/1/trabajoFin%20-%202024-03-06MARTINEZ%20BALLESTER.SILVIA.pdf',
+      },
+    ],
+    practical: practical({
+      state: 'Abandonado y en mal estado.',
+      access: 'El punto marca el Lavadero Roberto, en Portmán, la zona a la que llegaba el tren; la boca del túnel hay que localizarla allí.',
+      ownership: 'desconocida',
+      difficulty: 3,
+      risks: 'Túnel sin luz ni ventilación, con desprendimientos y chatarra. No entrar solo ni sin luz de repuesto.',
+      gear: 'Casco, dos linternas y calzado cerrado.',
+    }),
+  },
+  {
+    id: 'carcel-san-anton',
+    name: 'Cárcel de San Antón',
+    type: 'edificio',
+    lat: 37.61389,
+    lng: -0.99457,
+    approx: true,
+    town: 'Cartagena (San Antón)',
+    province: 'Murcia',
+    summary: 'Antigua prisión de Cartagena, derribada en parte, de la que quedan un pabellón y las garitas.',
+    history:
+      'Prisión levantada en los años de la Segunda República para mejorar las condiciones de los presos; el proyecto fue de Vicente Agustí Elguero, arquitecto de la Dirección General de Prisiones. Tras dejar de usarse salió a subasta y la compró la empresa que gestiona el hospital Perpetuo Socorro. El derribo del muro levantó la protesta de los vecinos y de la plataforma «La Cárcel no se Toca», que pide convertirla en centro cultural. En 2019 el Tribunal Superior de Justicia paralizó las obras de forma cautelar; en 2021 seguían en pie parte del pabellón de reclusos y cinco garitas.',
+    legend: '',
+    sources: [
+      wiki('Vicente Agustí Elguero'),
+      {
+        title: 'Spanish News Today: derribo del muro de la cárcel de San Antón',
+        url: 'https://spanishnewstoday.com/wall-of-historic-san-antonio-prison-in-cartagena-demolished-despite-opposition_1626824-a.html',
+      },
+      {
+        title: 'Murcia Today: polémica por la licencia de derribo',
+        url: 'https://murciatoday.com/residents-outraged-over-green-light-for-demolition-work-at-san-anton-prison-in-cartagena_2103297-a.html',
+      },
+    ],
+    practical: practical({
+      state: 'Derribada en parte. Puede que ya no quede nada: confírmalo antes de ir.',
+      access: 'En el barrio de San Antón; el punto marca el barrio, no el solar exacto. Solo desde la calle.',
+      ownership: 'privada',
+      difficulty: 1,
+      risks: 'Solar privado en obras: no entrar.',
+    }),
+  },
+  {
+    id: 'orfanato-valle-perdido',
+    name: 'Orfanato de El Valle Perdido',
+    type: 'leyenda',
+    lat: 37.92854,
+    lng: -1.15329,
+    approx: true,
+    town: 'Murcia (El Palmar)',
+    province: 'Murcia',
+    summary: 'Antiguo orfanato de posguerra, abandonado durante años y con fama de encantado.',
+    history:
+      'Según la prensa local, acogió a huérfanos de la Guerra Civil, criados bajo una disciplina muy dura, y después pasó años abandonado. No consta documentación que precise fechas ni quién lo gestionaba.',
+    legend: 'Se le atribuyen sombras y voces sin explicación.',
+    sources: [
+      {
+        title: 'Murcia Today: 10 haunted places in Murcia',
+        url: 'https://murciatoday.com/10-haunted-places-in-murcia-to-visit-or-at-least-know-about-this-halloween_1848602-a.html',
+      },
+    ],
+    practical: practical({
+      state: 'Sin confirmar: puede estar derribado, tapiado o reutilizado.',
+      access: 'El punto marca el paraje del Valle Perdido, no el edificio, que hay que localizar.',
+      ownership: 'desconocida',
+      difficulty: 2,
+      risks: 'Sin datos sobre el estado del edificio.',
+    }),
+  },
+  {
+    id: 'bateria-jorel',
+    name: 'Batería del Jorel',
+    type: 'militar',
+    lat: 37.53719,
+    lng: -1.11648,
+    town: 'Cartagena (Perín)',
+    province: 'Murcia',
+    summary: 'Batería de costa en la punta de Cabo Tiñoso, más allá de Castillitos.',
+    history:
+      'También llamada C-2. Es una de las tres baterías de Cabo Tiñoso: está a 227 m de altura, pasada la de Castillitos y antes del faro. Entró en el plan de defensa de 1926, con el que la dictadura de Primo de Rivera rodeó Cartagena de baterías de gran alcance. Las baterías de costa de Cartagena se disolvieron en 1993. Sigue siendo del Ministerio de Defensa, aunque se visita libremente; en 2025 se pidieron en el ayuntamiento medidas urgentes para conservarla.',
+    legend: '',
+    sources: [
+      { title: 'Castles.nl: Jorel Battery', url: 'https://castles.nl/jorel-battery' },
+      { title: 'Tudela, Bernabé y Molina (Universidad de Murcia): las baterías militares de Cabo Tiñoso', url: 'https://revistas.um.es/turismo/article/download/231071/179071/816441' },
+    ],
+    practical: practical({
+      state: 'Desartillada y abandonada.',
+      access: 'Por la misma carretera de Castillitos (RM-E23), siguiendo a pie hacia el faro.',
+      ownership: 'publica',
+      difficulty: 2,
+      risks: 'Galerías a oscuras, huecos sin proteger y cortados sobre el mar.',
+      gear: 'Linterna.',
+    }),
+  },
+  {
+    id: 'bateria-atalayon',
+    name: 'Batería del Atalayón',
+    type: 'militar',
+    lat: 37.54138,
+    lng: -1.12977,
+    town: 'Cartagena (Perín)',
+    province: 'Murcia',
+    summary: 'Batería antiaérea en lo más alto de Cabo Tiñoso, que protegía a Castillitos y al Jorel.',
+    history:
+      'Está a 326 m, antes de llegar a Castillitos. Era la batería antiaérea que defendía a las de Castillitos y el Jorel. Consta que hizo pruebas de tiro en 1933 y que se desartilló en 1952.',
+    legend: '',
+    sources: [
+      { title: 'Castles.nl: Atalayón Battery', url: 'https://castles.nl/atalayon-battery' },
+      { title: 'Tudela, Bernabé y Molina (Universidad de Murcia): las baterías militares de Cabo Tiñoso', url: 'https://revistas.um.es/turismo/article/download/231071/179071/816441' },
+    ],
+    practical: practical({
+      state: 'Desartillada y abandonada.',
+      access: 'En la carretera de Castillitos (RM-E23), poco antes de llegar.',
+      ownership: 'publica',
+      difficulty: 2,
+      risks: 'Galerías a oscuras, huecos sin proteger y cortados sobre el mar.',
+      gear: 'Linterna.',
+    }),
+  },
+  {
+    id: 'bateria-loma-larga',
+    name: 'Batería de Loma Larga',
+    type: 'militar',
+    lat: 37.56141,
+    lng: -1.14636,
+    town: 'Cartagena (Perín)',
+    province: 'Murcia',
+    summary: 'Batería de obuses de corta vida en el Campillo de Adentro, camino de Cabo Tiñoso.',
+    history:
+      'Se construyó en el Campillo de Adentro. Se artilló en 1935 con cuatro obuses Ordóñez de 240 mm y se desarmó ya en 1940, cuando sus piezas se enviaron a Ceuta.',
+    legend: '',
+    sources: [
+      { title: 'Tudela, Bernabé y Molina (Universidad de Murcia): las baterías militares de Cabo Tiñoso', url: 'https://revistas.um.es/turismo/article/download/231071/179071/816441' },
+    ],
+    practical: practical({
+      state: 'En ruina.',
+      access: 'Junto a la carretera RM-E23, pasado el Campillo de Adentro.',
+      ownership: 'publica',
+      difficulty: 2,
+      risks: 'Galerías a oscuras, huecos sin proteger y cortados sobre el mar.',
+      gear: 'Linterna.',
+    }),
+  },
+  {
+    id: 'bateria-aguilones',
+    name: 'Baterías de Aguilones y Conejos',
+    type: 'militar',
+    lat: 37.56043,
+    lng: -0.95357,
+    town: 'Cartagena (Escombreras)',
+    province: 'Murcia',
+    summary: 'Dos baterías de costa vecinas sobre el valle de Escombreras.',
+    history:
+      'La de Aguilones se artilló ya en 1912 y las dos figuran en el plan de defensa de 1926, con el que Cartagena se rodeó de baterías de gran alcance. Como el resto de baterías de costa de la plaza, se disolvieron en 1993. La de Conejos queda unos 600 m al este de la de Aguilones.',
+    legend: '',
+    sources: [
+      { title: 'Outono: ruta por tres baterías de Cartagena y el cementerio de Escombreras', url: 'https://outono.net/elentir/2024/09/07/a-route-through-three-batteries-of-cartagena-and-the-sad-cemetery-of-escombreras' },
+      { title: 'Tudela, Bernabé y Molina (Universidad de Murcia): las baterías militares de Cabo Tiñoso', url: 'https://revistas.um.es/turismo/article/download/231071/179071/816441' },
+    ],
+    practical: practical({
+      state: 'Desartillada y abandonada.',
+      access: 'Por la carretera de Escombreras (N-343). Están junto a un complejo industrial: confirma por dónde se puede pasar.',
+      ownership: 'publica',
+      difficulty: 2,
+      risks: 'Galerías a oscuras, huecos sin proteger y cortados sobre el mar.',
+      gear: 'Linterna.',
+    }),
+  },
+  {
+    id: 'bateria-la-chapa',
+    name: 'Batería de la Chapa',
+    type: 'militar',
+    lat: 37.57841,
+    lng: -0.84013,
+    town: 'La Unión (Portmán)',
+    province: 'Murcia',
+    summary: 'Batería de costa en la punta que cierra por levante la bahía de Portmán, junto al faro.',
+    history:
+      'Figura en el plan de defensa de 1926, con el que Cartagena se rodeó de baterías de gran alcance. Las baterías de costa de la plaza se disolvieron en 1993. No constan más datos sobre sus piezas ni su abandono.',
+    legend: '',
+    sources: [
+      { title: 'Tudela, Bernabé y Molina (Universidad de Murcia): las baterías militares de Cabo Tiñoso', url: 'https://revistas.um.es/turismo/article/download/231071/179071/816441' },
+    ],
+    practical: practical({
+      state: 'Desartillada y abandonada.',
+      access: 'A pie desde Portmán, por el camino del faro.',
+      ownership: 'publica',
+      difficulty: 2,
+      risks: 'Galerías a oscuras, huecos sin proteger y cortados sobre el mar.',
+      gear: 'Linterna.',
+    }),
+  },
+
   // ───────────── Fuera de Murcia ─────────────
   {
     id: 'preventorio-aguas-busot',
@@ -1333,6 +1741,218 @@ export const CATALOG: Place[] = [
       access: 'Por carretera de montaña.',
       ownership: 'publica',
       difficulty: 1,
+    }),
+  },
+  // Tanda de prensa local y blogs: Alicante, Almería y Albacete (noviembre de 2026).
+  {
+    id: 'colonia-santa-eulalia',
+    name: 'Colonia de Santa Eulalia',
+    type: 'pueblo',
+    lat: 38.55946,
+    lng: -0.84296,
+    town: 'Sax y Villena',
+    province: 'Alicante',
+    summary: 'Colonia agrícola e industrial de finales del XIX, con palacio, molino y ermita, hoy medio abandonada.',
+    history:
+      'Se empezó a construir a finales del siglo XIX, al amparo de la ley de colonias de 1868 y con las ideas del socialismo utópico: viviendas y servicios en torno a las fábricas para formar una comunidad autosuficiente. Vivió su mejor época a principios del siglo XX y decayó con el cierre de sus industrias y el abandono de los cultivos. La calle de Salinas separa los términos de Villena y Sax. Siguen en pie el palacio de los condes, el molino harinero y la ermita de Santa Eulalia; el conjunto es bien de interés cultural desde 2016.',
+    legend: '',
+    sources: [
+      wiki('La Colonia de Santa Eulalia'),
+      {
+        title: 'Idealista: tres pueblos abandonados de Alicante',
+        url: 'https://www.idealista.com/en/news/node/907273',
+      },
+      {
+        title: 'Turismo Comunitat Valenciana: ruta por pueblos abandonados',
+        url: 'https://comunitatvalenciana.com/es/inspirate/pueblos-abandonados-comunitat-valenciana',
+      },
+    ],
+    practical: practical({
+      state: 'Semiabandonada, con los edificios principales muy deteriorados.',
+      access: 'A unos 4,5 km de Sax y 8 km de Villena. Se pasea por sus calles; todavía viven vecinos.',
+      ownership: 'privada',
+      difficulty: 1,
+      risks: 'Edificios con riesgo de derrumbe: no entrar.',
+    }),
+  },
+  {
+    id: 'llombai-gallinera',
+    name: 'Llombai',
+    type: 'pueblo',
+    lat: 38.81604,
+    lng: -0.26959,
+    town: 'La Vall de Gallinera',
+    province: 'Alicante',
+    summary: 'Aldea de una sola calle y quince casas que se quedó sin vecinos en los años setenta.',
+    history:
+      'Pequeño núcleo de la Vall de Gallinera, de unas quince casas en una única calle, que vivía del olivar. Empezó a vaciarse en los años sesenta, cuando los vecinos se mudaron a pueblos cercanos con más servicios, como Alpatró, aunque siguieron trabajando sus tierras. El último vecino murió en 1977. Madoz la describe en su diccionario de 1847; en 2021 tenía tres habitantes censados.',
+    legend:
+      'Se cuenta que aquí vivió aislado durante casi treinta años un extranjero, Stefan Gregor, al que los vecinos del valle tomaban por un antiguo oficial nazi.',
+    sources: [
+      wiki('Llombay (Vall de Gallinera)'),
+      {
+        title: 'Idealista: tres pueblos abandonados de Alicante',
+        url: 'https://www.idealista.com/en/news/node/907273',
+      },
+    ],
+    practical: practical({
+      state: 'Abandonada; se puede recorrer.',
+      access: 'En la Vall de Gallinera, cerca de Alpatró.',
+      ownership: 'privada',
+      difficulty: 1,
+      risks: 'Casas sin techo y muros sueltos.',
+    }),
+  },
+  {
+    id: 'salinetes-novelda',
+    name: 'Balneario de Les Salinetes',
+    type: 'edificio',
+    lat: 38.43567,
+    lng: -0.78224,
+    approx: true,
+    parkingAt: { lat: 38.435736, lng: -0.782606 },
+    town: 'Novelda',
+    province: 'Alicante',
+    summary: 'Ruinas de un balneario del siglo XIX junto a unas balsas naturales de agua salada.',
+    history:
+      'Complejo de baños y alojamiento junto a la carretera de Elda a Alicante; según la prensa local, se inauguró el 3 de marzo de 1858. Sus aguas, clorurado-sódicas y sulfurosas, salían de un manantial distinto del que hoy llena las balsas del barranco. Del balneario solo quedan en pie la sala donde se tomaban los baños y la ermita. Las balsas de sal (els clots de la Sal) son de acceso libre y las mantienen particulares de forma voluntaria.',
+    legend: '',
+    sources: [
+      {
+        title: 'Valencia Bonita: Les Salinetes de Novelda',
+        url: 'https://www.valenciabonita.es/2020/07/14/les-salinetes-novelda/',
+      },
+      {
+        title: 'Escapada Rural: Salinetas de Novelda',
+        url: 'https://www.escapadarural.com/blog/salinetas-de-novelda-balneario-gratis-alicante/',
+      },
+    ],
+    practical: practical({
+      state: 'En ruina. Las balsas, descuidadas y a veces casi sin agua.',
+      access: 'Junto a la autovía A-31, por una salida anterior a Novelda. Del aparcamiento se baja a pie.',
+      ownership: 'desconocida',
+      difficulty: 1,
+      risks: 'Ruinas inestables. Apenas hay sombra: evita el mediodía en verano.',
+      parking: 'Explanada junto a la subestación eléctrica.',
+      gear: 'Agua y gorra.',
+    }),
+  },
+  {
+    id: 'fuerte-bernia',
+    name: 'Fuerte de Bernia',
+    type: 'militar',
+    lat: 38.66111,
+    lng: -0.06216,
+    town: "Callosa d'en Sarrià",
+    province: 'Alicante',
+    summary: 'Ruinas de un fuerte renacentista en plena sierra, mandado demoler medio siglo después de construirlo.',
+    history:
+      'Lo levantó en 1562 el ingeniero Juan Bautista Antonelli, por orden de Felipe II, para defender la costa de los ataques otomanos. En 1612 Felipe III mandó demolerlo para que no sirviera de refugio a moriscos rebeldes. Se reconocen la planta, el foso seco y el acceso: un recinto exterior en estrella de cuatro puntas y otro interior cuadrado, con baluartes pentagonales en las esquinas. Es bien de interés cultural desde 1997.',
+    legend: '',
+    sources: [wiki('Castillo de Bernia')],
+    practical: practical({
+      state: 'En ruina; se conservan muros, bóvedas y el foso.',
+      access: 'Solo a pie, por los senderos de la sierra de Bernia.',
+      ownership: 'desconocida',
+      difficulty: 2,
+      risks: 'Sendero de montaña con tramos de piedra suelta; bóvedas degradadas.',
+      gear: 'Calzado de montaña y agua.',
+    }),
+  },
+  {
+    id: 'hotel-algarrobico',
+    name: 'Hotel El Algarrobico',
+    type: 'edificio',
+    lat: 37.02765,
+    lng: -1.88002,
+    town: 'Carboneras',
+    province: 'Almería',
+    summary: 'Hotel de 21 plantas a medio construir en una playa del Cabo de Gata, símbolo de la especulación urbanística.',
+    history:
+      'En 1999 la constructora Azata del Sol compró más de 16 hectáreas junto al mar en la playa del Algarrobico, dentro del parque natural del Cabo de Gata-Níjar. El ayuntamiento concedió la licencia el 13 de enero de 2003 y en marzo empezaron las obras de un hotel de 21 plantas y 411 habitaciones. Las denuncias de grupos ecologistas lograron que se paralizara, y el pleito sobre su derribo ha durado más de dos décadas. El 11 de febrero de 2025 el Consejo de Ministros inició los trámites para expropiarlo y demolerlo.',
+    legend: '',
+    sources: [wiki('Hotel El Algarrobico')],
+    practical: practical({
+      state: 'Estructura sin terminar, pendiente de derribo. Confirma que sigue en pie antes de ir.',
+      access: 'Cerrado. Se ve desde la propia playa del Algarrobico.',
+      ownership: 'privada',
+      difficulty: 1,
+      risks: 'No entrar: obra abandonada, con huecos sin proteger.',
+    }),
+  },
+  {
+    id: 'minas-sierra-almagrera',
+    name: 'Minas de Sierra Almagrera',
+    type: 'industrial',
+    lat: 37.27179,
+    lng: -1.78143,
+    approx: true,
+    town: 'Cuevas del Almanzora',
+    province: 'Almería',
+    summary: 'Sierra costera sembrada de pozos, chimeneas y poblados de la fiebre de la plata de 1838.',
+    history:
+      'Sierra litoral de no más de 366 m, toda ella en Cuevas del Almanzora. Sus fallas están rellenas de filones de plomo y plata (galena argentífera), cuyo descubrimiento en 1838 desató una fiebre minera que llenó la sierra de pozos, fundiciones y poblados. Del barranco del Jaroso toma nombre la jarosita, un mineral descrito aquí. La sierra es hoy zona de especial conservación.',
+    legend: '',
+    sources: [wiki('Sierra Almagrera')],
+    practical: practical({
+      state: 'Instalaciones mineras en ruina, repartidas por toda la sierra.',
+      access: 'Por la carretera de Villaricos a Pozo del Esparto y las pistas que suben a los barrancos. El punto marca el poblado de El Arteal.',
+      ownership: 'desconocida',
+      difficulty: 3,
+      risks: 'Pozos verticales sin tapar ni señalizar, a ras de suelo. No salirse de los caminos ni entrar en galerías.',
+      gear: 'Calzado de montaña, agua y linterna.',
+    }),
+  },
+  {
+    id: 'las-minas-hellin',
+    name: 'Las Minas de Hellín',
+    type: 'pueblo',
+    lat: 38.33073,
+    lng: -1.68093,
+    town: 'Hellín (Las Minas)',
+    province: 'Albacete',
+    summary: 'Poblado minero del azufre, casi vacío, en el límite con Murcia.',
+    history:
+      'El azufre de este paraje ya lo cita el geógrafo andalusí al-Zuhri. La explotación vivió su mejor época en los siglos XVIII y XIX, cuando llegó a ser la gran productora de azufre nativo del suroeste de Europa, con mucho trabajo infantil. A principios del siglo XX el poblado tenía central eléctrica y ferrocarril propios. La quiebra de la explotación lo dejó casi vacío: hoy tiene menos de cien vecinos, entre casas, hornos y escombreras abandonados, dentro de la microrreserva de los Yesares de Hellín.',
+    legend: '',
+    sources: [
+      {
+        title: 'C. Romera Tébar: las minas de azufre de Hellín (Geographos, 2014)',
+        url: 'https://dialnet.unirioja.es/descarga/articulo/4596364.pdf',
+      },
+      {
+        title: 'Dar valor a un territorio minero abandonado: una propuesta para Las Minas (Hellín)',
+        url: 'https://produccioncientifica.ucm.es/documentos/6270b62ac354625e39ac0855',
+      },
+    ],
+    practical: practical({
+      state: 'Poblado muy deteriorado, con algunos vecinos; instalaciones mineras en ruina.',
+      access: 'Por carretera desde Hellín o desde Calasparra. Se recorre el poblado a pie.',
+      ownership: 'desconocida',
+      difficulty: 2,
+      risks: 'Pozos y galerías abiertos, escombreras inestables y edificios en ruina.',
+    }),
+  },
+  {
+    id: 'molinar-alcoy',
+    name: 'El Molinar de Alcoy',
+    type: 'industrial',
+    lat: 38.68354,
+    lng: -0.46752,
+    approx: true,
+    town: 'Alcoy',
+    province: 'Alicante',
+    summary: 'Barranco con las ruinas de las fábricas donde arrancó la industria alcoyana.',
+    history:
+      'Paraje a unos dos kilómetros al sur de Alcoy, a lo largo del río Molinar. Su caudal constante y sus desniveles atrajeron molinos harineros y batanes desde el siglo XV, y sobre ellos creció, a partir de la segunda década del siglo XIX, uno de los primeros núcleos fabriles valencianos: fábricas escalonadas en el barranco que compartían el agua por acequias y canales.',
+    legend: '',
+    sources: [wiki('El Molinar de Alcoy')],
+    practical: practical({
+      state: 'Fábricas abandonadas y en ruina a lo largo del barranco.',
+      access: 'La cabecera, desde la N-340 a la altura de la Venta Saltera; la parte media, por la carretera del Molinar desde Alcoy. El punto marca el río, no una fábrica concreta.',
+      ownership: 'desconocida',
+      difficulty: 2,
+      risks: 'Naves con cubiertas hundidas, huecos y canales sin proteger. No entrar.',
     }),
   },
 ];
