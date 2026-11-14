@@ -22,6 +22,8 @@ interface Props {
   follow: boolean;
   /** Lugar hacia el que se está guiando. */
   target: Place | null;
+  /** Trazado por carretera desde la posición hasta el destino; sin él se guía en línea recta. */
+  guideLine?: [number, number][] | null;
   focus: Focus | null;
   picking: boolean;
   onPick: (p: LatLng) => void;
@@ -63,6 +65,7 @@ export default function MapView({
   userPos,
   follow,
   target,
+  guideLine,
   focus,
   picking,
   onPick,
@@ -201,9 +204,21 @@ export default function MapView({
       }).addTo(userLayer.current);
     }
     if (target) {
-      L.polyline([here, [target.lat, target.lng]], { color: '#2b7fff', weight: 4, opacity: 0.85 }).addTo(
-        userLayer.current,
-      );
+      const goal: L.LatLngTuple = [target.lat, target.lng];
+      if (guideLine?.length) {
+        L.polyline(guideLine, { color: '#2b7fff', weight: 5, opacity: 0.85 }).addTo(userLayer.current);
+        // La carretera no suele llegar hasta el lugar: el último trecho, a pie, va en discontinuo.
+        L.polyline([guideLine[guideLine.length - 1], goal], {
+          color: '#2b7fff',
+          weight: 4,
+          opacity: 0.85,
+          dashArray: '6 8',
+        }).addTo(userLayer.current);
+      } else {
+        L.polyline([here, goal], { color: '#2b7fff', weight: 4, opacity: 0.85, dashArray: '6 8' }).addTo(
+          userLayer.current,
+        );
+      }
     }
     L.circleMarker(here, { radius: 8, color: '#fff', weight: 3, fillColor: '#2b7fff', fillOpacity: 1 })
       .bindTooltip('Tu posición')
@@ -220,7 +235,7 @@ export default function MapView({
       else m.panTo(here);
     }
     hadPosition.current = true;
-  }, [userPos, target, follow]);
+  }, [userPos, target, follow, guideLine]);
 
   useEffect(() => {
     if (!target) framed.current = null;

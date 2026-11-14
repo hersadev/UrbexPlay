@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CATALOG, isCatalogId, isOriginal } from './catalog';
 import { emptyData, loadData, saveData, stampChanges } from './store';
-import { cardinal, distanceKm, formatKm } from './geo';
-import { tripPoints, useRoadRoute } from './road';
+import { cardinal, distanceKm, formatKm, nearestOnLine } from './geo';
+import { formatDuration, tripPoints, useRoadRoute } from './road';
 import { loadSyncConfig, mergeRemote, pushPull, saveSyncConfig, type SyncConfig, type SyncStatus } from './sync';
 import type { Data, LatLng, Place, Position } from './types';
 import MapView, { type Focus } from './components/MapView';
@@ -277,6 +277,46 @@ export default function App() {
   const target = targetId ? (byId.get(targetId) ?? null) : null;
   const targetKm = target && userPos ? distanceKm(userPos, target) : null;
 
+  /** Punto desde el que se calculó la ruta de la guía; cambia solo al salirse de ella. */
+  const [guideFrom, setGuideFrom] = useState<LatLng | null>(null);
+  const guidePoints = useMemo(() => (guideFrom && target ? [guideFrom, target] : []), [guideFrom, target]);
+  const guideRoad = useRoadRoute(guidePoints);
+  /** Lo que queda de ruta desde la posición actual. */
+  const guide = useMemo(() => {
+    if (guideRoad.status !== 'ok' || !userPos || guideRoad.route.line.length < 2) return null;
+    const { line, legs } = guideRoad.route;
+    const near = nearestOnLine(line, userPos);
+    const rest: [number, number][] = [near.point, ...line.slice(near.index + 1)];
+    const length = (points: [number, number][]) => {
+      let km = 0;
+      for (let i = 1; i < points.length; i++) {
+        km += distanceKm({ lat: points[i - 1][0], lng: points[i - 1][1] }, { lat: points[i][0], lng: points[i][1] });
+      }
+      return km;
+    };
+    const km = length(rest);
+    const total = length(line);
+    return {
+      line: [[userPos.lat, userPos.lng] as [number, number], ...rest],
+      km,
+      minutes: total ? (legs[0].minutes * km) / total : 0,
+      off: near.km,
+    };
+  }, [guideRoad, userPos]);
+
+  useEffect(() => setGuideFrom(null), [targetId]);
+  useEffect(() => {
+    if (!targetId || !userPos) return;
+    const margin = Math.max(0.15, ((userPos.accuracy ?? 0) * 2) / 1000);
+    setGuideFrom((from) => {
+      if (!from) return userPos;
+      // Fuera de la ruta: se recalcula desde aquí. Si falló (sin cobertura), se reintenta al avanzar.
+      if (guide && guide.off > margin) return userPos;
+      if (guideRoad.status === 'error' && distanceKm(from, userPos) > 0.5) return userPos;
+      return from;
+    });
+  }, [targetId, userPos, guide, guideRoad.status]);
+
   // Con una salida abierta, el mapa enseña solo sus paradas.
   const mapPlaces = route && route.length ? route : (visible ?? places);
 
@@ -394,6 +434,7 @@ export default function App() {
           userPos={userPos}
           follow={follow}
           target={target}
+          guideLine={guide?.line ?? null}
           onUserPan={() => setFollow(false)}
           focus={focus}
           picking={picking}
@@ -420,7 +461,17 @@ export default function App() {
                 ? 'Buscando tu posición…'
                 : targetKm < 0.03
                   ? 'Has llegado'
-                  : `${formatKm(targetKm)} al ${cardinal(userPos!, target)} en línea recta`}
+                  : guide && guide.km > 0.1
+                    ? `${formatKm(guide.km)} · ${formatDuration(guide.minutes)} por carretera`
+                    : `${formatKm(targetKm)} al ${cardinal(userPos!, target)} en línea recta`}
+              {targetKm !== null && targetKm >= 0.03 && guide && guide.km > 0.1 && (
+                <span className="muted small">
+                  {formatKm(targetKm)} al {cardinal(userPos!, target)} en línea recta
+                </span>
+              )}
+              {guideRoad.status === 'error' && (
+                <span className="muted small">Sin conexión: no se puede calcular la ruta por carretera</span>
+              )}
               {userPos?.accuracy && userPos.accuracy > 50 && (
                 <span className="muted small">GPS poco preciso (±{Math.round(userPos.accuracy)} m)</span>
               )}

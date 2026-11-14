@@ -35,6 +35,28 @@ export function pathKm(points: LatLng[]): number {
   return total;
 }
 
+/** Punto de un trazado (pares [lat, lng]) más cercano a `pos`, y a qué distancia queda. */
+export function nearestOnLine(
+  line: [number, number][],
+  pos: LatLng,
+): { /** Tramo en el que cae: entre `index` e `index + 1`. */ index: number; point: [number, number]; km: number } {
+  // A esta escala basta una proyección plana alrededor de la posición.
+  const scale = Math.cos((pos.lat * Math.PI) / 180);
+  let best = { index: 0, point: line[0], km: Infinity };
+  for (let i = 0; i < line.length - 1; i++) {
+    const [aLat, aLng] = line[i];
+    const [bLat, bLng] = line[i + 1];
+    const dx = (bLng - aLng) * scale;
+    const dy = bLat - aLat;
+    const length = dx * dx + dy * dy;
+    const t = length ? Math.min(1, Math.max(0, ((pos.lng - aLng) * scale * dx + (pos.lat - aLat) * dy) / length)) : 0;
+    const point: [number, number] = [aLat + (bLat - aLat) * t, aLng + (bLng - aLng) * t];
+    const km = distanceKm(pos, { lat: point[0], lng: point[1] });
+    if (km < best.km) best = { index: i, point, km };
+  }
+  return best;
+}
+
 const pair = (p: LatLng) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
 
 export const formatCoords = (p: LatLng) => `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
