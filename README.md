@@ -21,8 +21,21 @@ usar sin cobertura, con GPS.
 
 ## Sobre el terreno
 
-- **Posición en vivo**: el botón ⌖ del mapa sigue tu posición; «Guiarme», en la
-  ficha de un lugar, marca la distancia y el rumbo en línea recta hasta él.
+- **Posición en vivo**: el botón ⌖ del mapa sigue tu posición.
+- **Guiarme**: desde la ficha de un lugar, te lleva por carretera hasta su punto
+  de aparcamiento y, al llegar, a pie hasta la entrada (los dos puntos son
+  opcionales y se ponen al editar la ficha; sin ellos se guía al propio lugar).
+  «A pie» / «En coche» cambia de etapa a mano. Las rutas a pie las calcula el
+  mismo servidor OSRM que las de carretera.
+- **Flecha de rumbo**: en un móvil con brújula, la guía enseña una flecha que
+  señala el destino según hacia dónde mires; sin brújula, el punto cardinal.
+- **Dónde aparqué**: el botón 🚗 del mapa guarda la posición del coche; después
+  te guía a pie de vuelta. Se guarda solo en ese dispositivo.
+- **Grabar el recorrido**: «Grabar recorrido», en el diario de un lugar, registra
+  por dónde te mueves y lo guarda en la visita de ese día, para verlo en el mapa
+  o exportarlo en GPX. El navegador solo da la posición con la app abierta y la
+  pantalla encendida. Los recorridos, como las fotos, se quedan en el
+  dispositivo y van en la copia de seguridad.
 - **Mapa sin cobertura**: en cada salida, «Guardar mapa de esta salida» descarga
   el topográfico y el satélite del IGN alrededor de las paradas. El callejero de
   OpenStreetMap no se descarga porque su política de uso no lo permite.
@@ -90,7 +103,8 @@ El script crea las pestañas `Lugares`, `Diario`, `Salidas` y `Ocultos`. El punt
 de salida y el equipo marcado de cada salida viajan en las columnas `origen` y
 `equipo` de `Salidas`; una hoja con un script anterior a esas columnas sigue
 funcionando, pero no los pasa de un dispositivo a otro hasta actualizar el
-script. Se puede
+script. Lo mismo ocurre con los puntos de aparcamiento y de entrada, en las
+columnas `aparcamiento_coords` y `entrada_coords` de `Lugares`. Se puede
 editar la hoja a mano: una fila nueva en `Lugares` con nombre, `lat` y `lng`
 aparece en la app en la siguiente sincronización. Para borrar, escribe `TRUE`
 en la columna `borrado` en lugar de eliminar la fila.

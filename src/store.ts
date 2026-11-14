@@ -1,8 +1,11 @@
 import { del, get, keys, set } from 'idb-keyval';
-import type { Data } from './types';
+import type { Data, LatLng, TrackPoint } from './types';
 
 const DATA_KEY = 'urbexplay:data';
 const PHOTO_PREFIX = 'urbexplay:foto:';
+const TRACK_PREFIX = 'urbexplay:recorrido:';
+const CAR_KEY = 'urbexplay:coche';
+const RECORDING_KEY = 'urbexplay:grabando';
 
 export const emptyData = (): Data => ({ custom: [], hidden: [], diary: {}, trips: [], stamps: {} });
 
@@ -66,6 +69,31 @@ export async function savePhoto(file: File): Promise<string> {
 export const getPhoto = (id: string) => get<Blob>(PHOTO_PREFIX + id);
 export const deletePhoto = (id: string) => del(PHOTO_PREFIX + id);
 
+/** Guarda un recorrido grabado. Devuelve su id. */
+export async function saveTrack(points: TrackPoint[]): Promise<string> {
+  const id = uid();
+  await set(TRACK_PREFIX + id, points);
+  return id;
+}
+export const getTrack = (id: string) => get<TrackPoint[]>(TRACK_PREFIX + id);
+export const deleteTrack = (id: string) => del(TRACK_PREFIX + id);
+
+/** Dónde se ha dejado el coche. Solo en este dispositivo. */
+export interface Car extends LatLng {
+  at: number;
+}
+export const loadCar = () => get<Car>(CAR_KEY);
+export const saveCar = (car: Car | null) => (car ? set(CAR_KEY, car) : del(CAR_KEY));
+
+/** Recorrido que se está grabando; se va guardando para no perderlo si la app se recarga. */
+export interface Recording {
+  placeId: string;
+  startedAt: number;
+  points: TrackPoint[];
+}
+export const loadRecording = () => get<Recording>(RECORDING_KEY);
+export const saveRecording = (rec: Recording | null) => (rec ? set(RECORDING_KEY, rec) : del(RECORDING_KEY));
+
 const blobToDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -80,14 +108,20 @@ interface Backup {
   exportedAt: string;
   data: Data;
   photos: Record<string, string>;
+  tracks?: Record<string, TrackPoint[]>;
 }
 
 export async function exportBackup(data: Data): Promise<Blob> {
   const photos: Record<string, string> = {};
+  const tracks: Record<string, TrackPoint[]> = {};
   for (const key of await keys()) {
-    if (typeof key === 'string' && key.startsWith(PHOTO_PREFIX)) {
+    if (typeof key !== 'string') continue;
+    if (key.startsWith(PHOTO_PREFIX)) {
       const blob = await get<Blob>(key);
       if (blob) photos[key.slice(PHOTO_PREFIX.length)] = await blobToDataUrl(blob);
+    } else if (key.startsWith(TRACK_PREFIX)) {
+      const points = await get<TrackPoint[]>(key);
+      if (points) tracks[key.slice(TRACK_PREFIX.length)] = points;
     }
   }
   const backup: Backup = {
@@ -96,6 +130,7 @@ export async function exportBackup(data: Data): Promise<Blob> {
     exportedAt: new Date().toISOString(),
     data,
     photos,
+    tracks,
   };
   return new Blob([JSON.stringify(backup)], { type: 'application/json' });
 }
@@ -108,8 +143,9 @@ export async function importBackup(file: File): Promise<Data> {
   }
   const data = withStamps({ ...emptyData(), ...backup.data });
   for (const key of await keys()) {
-    if (typeof key === 'string' && key.startsWith(PHOTO_PREFIX)) await del(key);
+    if (typeof key === 'string' && (key.startsWith(PHOTO_PREFIX) || key.startsWith(TRACK_PREFIX))) await del(key);
   }
+  for (const [id, points] of Object.entries(backup.tracks ?? {})) await set(TRACK_PREFIX + id, points);
   for (const [id, dataUrl] of Object.entries(backup.photos ?? {})) {
     const blob = await (await fetch(dataUrl)).blob();
     await set(PHOTO_PREFIX + id, blob);

@@ -3,6 +3,17 @@ import L from 'leaflet';
 import { IGN_ORTO, IGN_TOPO, cachedTile } from '../offline';
 import { TYPE_META, type Diary, type LatLng, type Place, type Position } from '../types';
 
+/** Punto auxiliar del mapa: el coche, un aparcamiento o una entrada. */
+export interface Mark extends LatLng {
+  glyph: string;
+  title: string;
+}
+
+/** Punto al que se guía en este momento. `key` cambia con el destino y con la etapa. */
+export interface Target extends LatLng {
+  key: string;
+}
+
 export interface Focus extends LatLng {
   zoom?: number;
   /** Cambia en cada petición para poder repetir el mismo destino. */
@@ -20,8 +31,13 @@ interface Props {
   userPos: Position | null;
   /** El mapa se mantiene centrado en la posición del usuario. */
   follow: boolean;
-  /** Lugar hacia el que se está guiando. */
-  target: Place | null;
+  /** Punto hacia el que se está guiando. */
+  target: Target | null;
+  marks: Mark[];
+  /** Recorrido grabado (o que se está grabando), como pares [lat, lng]. */
+  track?: [number, number][] | null;
+  /** Cambia cuando hay que encuadrar el recorrido. */
+  trackFocus?: number;
   /** Trazado por carretera desde la posición hasta el destino; sin él se guía en línea recta. */
   guideLine?: [number, number][] | null;
   focus: Focus | null;
@@ -65,6 +81,9 @@ export default function MapView({
   userPos,
   follow,
   target,
+  marks,
+  track,
+  trackFocus,
   guideLine,
   focus,
   picking,
@@ -79,6 +98,8 @@ export default function MapView({
   /** Recorrido ya encuadrado, para no mover el mapa cuando solo llega el trazado. */
   const fitted = useRef('');
   const userLayer = useRef(L.layerGroup());
+  const markLayer = useRef(L.layerGroup());
+  const trackLayer = useRef(L.layerGroup());
   // El mapa se crea una sola vez; los manejadores leen siempre la versión actual.
   const live = useRef({ picking, onPick, onOpen, onUserPan });
   live.current = { picking, onPick, onOpen, onUserPan };
@@ -109,6 +130,8 @@ export default function MapView({
 
     markers.current.addTo(m);
     routeLayer.current.addTo(m);
+    trackLayer.current.addTo(m);
+    markLayer.current.addTo(m);
     userLayer.current.addTo(m);
     m.on('click', (e) => {
       if (live.current.picking) live.current.onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
@@ -186,6 +209,37 @@ export default function MapView({
     else map.current?.setView(stops[0], 12, { animate: false });
   }, [route, routeStart, routeLine]);
 
+  useEffect(() => {
+    markLayer.current.clearLayers();
+    for (const mark of marks) {
+      const icon = L.divIcon({
+        className: '',
+        html: `<span class="pin mark">${mark.glyph}</span>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+      L.marker([mark.lat, mark.lng], { icon, title: mark.title, zIndexOffset: 500 })
+        .bindTooltip(mark.title)
+        .addTo(markLayer.current);
+    }
+  }, [marks]);
+
+  useEffect(() => {
+    trackLayer.current.clearLayers();
+    if (track && track.length > 1) {
+      L.polyline(track, { color: '#e5484d', weight: 4, opacity: 0.9, interactive: false }).addTo(trackLayer.current);
+    }
+  }, [track]);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !trackFocus || !track || track.length < 2) return;
+    // El mapa puede acabar de hacerse visible: se mide antes de encuadrar.
+    m.invalidateSize();
+    m.fitBounds(L.latLngBounds(track), { padding: [50, 50], maxZoom: 17, animate: false });
+    // Solo al pedirlo, no con cada punto nuevo de la grabación.
+  }, [trackFocus]);
+
   // Posición del usuario, precisión y línea hacia el destino.
   useEffect(() => {
     userLayer.current.clearLayers();
@@ -226,8 +280,8 @@ export default function MapView({
 
     const m = map.current;
     if (!m) return;
-    if (target && framed.current !== target.id) {
-      framed.current = target.id;
+    if (target && framed.current !== target.key) {
+      framed.current = target.key;
       m.fitBounds(L.latLngBounds([here, [target.lat, target.lng]]), { padding: [60, 60], maxZoom: 17, animate: false });
     } else if (follow) {
       // La primera vez se acerca; después solo acompaña, respetando el zoom elegido.

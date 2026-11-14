@@ -1,4 +1,4 @@
-import type { LatLng } from './types';
+import type { LatLng, Place } from './types';
 
 /** Distancia en línea recta, en km. */
 export function distanceKm(a: LatLng, b: LatLng): number {
@@ -13,16 +13,21 @@ export function distanceKm(a: LatLng, b: LatLng): number {
 
 const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
 
-/** Rumbo de `a` hacia `b` como punto cardinal (N, NE, E…). */
-export function cardinal(a: LatLng, b: LatLng): string {
+/** Rumbo de `a` hacia `b`, en grados desde el norte en el sentido de las agujas del reloj. */
+export function bearing(a: LatLng, b: LatLng): number {
   const rad = Math.PI / 180;
   const dLng = (b.lng - a.lng) * rad;
   const y = Math.sin(dLng) * Math.cos(b.lat * rad);
   const x =
     Math.cos(a.lat * rad) * Math.sin(b.lat * rad) - Math.sin(a.lat * rad) * Math.cos(b.lat * rad) * Math.cos(dLng);
-  const degrees = (Math.atan2(y, x) / rad + 360) % 360;
-  return CARDINALS[Math.round(degrees / 45) % 8];
+  return (Math.atan2(y, x) / rad + 360) % 360;
 }
+
+/** Rumbo de `a` hacia `b` como punto cardinal (N, NE, E…). */
+export const cardinal = (a: LatLng, b: LatLng): string => CARDINALS[Math.round(bearing(a, b) / 45) % 8];
+
+/** Punto al que se llega en coche: el aparcamiento si la ficha lo indica, o el propio lugar. */
+export const drivePoint = (p: Place): LatLng => p.parkingAt ?? p;
 
 export function formatKm(km: number): string {
   if (km < 1) return `${Math.round(km * 1000)} m`;

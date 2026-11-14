@@ -42,6 +42,10 @@ export interface Place {
   legend: string;
   sources: Source[];
   practical: Practical;
+  /** Dónde se deja el coche: hasta aquí se guía por carretera. */
+  parkingAt?: LatLng;
+  /** Por dónde se entra: hasta aquí se guía a pie. */
+  entryAt?: LatLng;
   /** Creado o modificado por el usuario. */
   custom?: boolean;
 }
@@ -53,7 +57,12 @@ export interface Visit {
   date: string;
   notes: string;
   photos: string[];
+  /** Id del recorrido grabado en la visita. Como las fotos, se queda en el dispositivo que lo grabó. */
+  track?: string;
 }
+
+/** Punto de un recorrido grabado: latitud, longitud y momento (ms). */
+export type TrackPoint = [lat: number, lng: number, time: number];
 
 export interface Diary {
   status: Status;

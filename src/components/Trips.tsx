@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { gearList } from '../gear';
-import { distanceKm, formatKm, googleMapsRoute, nearestOrder, pathKm } from '../geo';
+import { distanceKm, drivePoint, formatKm, googleMapsRoute, nearestOrder, pathKm } from '../geo';
 import { loadSavedMaps, saveSavedMaps } from '../offline';
 import { formatDuration, tripPoints, useRoadRoute } from '../road';
 import { uid } from '../store';
@@ -31,7 +31,8 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
     () => (trip ? trip.placeIds.map((id) => byId.get(id)).filter((p): p is Place => !!p) : []),
     [trip, byId],
   );
-  const points = useMemo(() => tripPoints(trip?.start, stops), [trip?.start, stops]);
+  // En coche se va hasta el aparcamiento de cada parada, si la ficha lo indica.
+  const points = useMemo(() => tripPoints(trip?.start, stops.map(drivePoint)), [trip?.start, stops]);
   const road = useRoadRoute(points);
   const gear = useMemo(() => gearList(stops), [stops]);
 
@@ -277,7 +278,7 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
             </p>
           )}
           <div className="row">
-            <a className="btn primary" href={googleMapsRoute(stops, start)} target="_blank" rel="noreferrer">
+            <a className="btn primary" href={googleMapsRoute(stops.map(drivePoint), start)} target="_blank" rel="noreferrer">
               Abrir ruta en Google Maps ↗
             </a>
             <button className="btn mobile-only" onClick={onShowOnMap}>

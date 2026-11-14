@@ -7,8 +7,10 @@ import type { LatLng } from './types';
  * (routing.openstreetmap.de), el mismo que usa openstreetmap.org. Es gratuito
  * y sin clave, así que se le pide lo mínimo: una consulta por recorrido, con
  * espera mientras se reordenan paradas, y las últimas respuestas se guardan
- * para verlas sin cobertura.
+ * para verlas sin cobertura. El mismo servidor calcula las rutas a pie.
  */
+
+export type Profile = 'coche' | 'pie';
 
 export interface RoadLeg {
   km: number;
@@ -27,6 +29,7 @@ export type RoadState = { status: 'idle' | 'loading' | 'error'; route?: undefine
 const CACHE_KEY = 'urbexplay:rutas';
 const CACHE_SIZE = 12;
 const WAIT_MS = 700;
+const FOOT = 'pie:';
 
 const memory = new Map<string, RoadRoute>();
 const pending = new Map<string, Promise<RoadRoute>>();
@@ -39,8 +42,12 @@ export function tripPoints(start: LatLng | undefined, stops: LatLng[]): LatLng[]
   return start ? [start, ...stops, start] : stops;
 }
 
+/** `key` es el recorrido; las rutas a pie llevan delante «pie:». */
 async function fetchRoute(key: string): Promise<RoadRoute> {
-  const url = `https://routing.openstreetmap.de/routed-car/route/v1/driving/${key}?overview=full&geometries=geojson`;
+  const foot = key.startsWith(FOOT);
+  const url =
+    `https://routing.openstreetmap.de/routed-${foot ? 'foot' : 'car'}/route/v1/driving/` +
+    `${foot ? key.slice(FOOT.length) : key}?overview=full&geometries=geojson`;
   const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error('ruta');
   const json = (await response.json()) as {
@@ -81,8 +88,8 @@ function roadRoute(key: string): Promise<RoadRoute> {
 }
 
 /** Ruta por carretera que pasa por los puntos en orden. Con menos de dos puntos no hace nada. */
-export function useRoadRoute(points: LatLng[]): RoadState {
-  const key = points.length > 1 ? keyOf(points) : '';
+export function useRoadRoute(points: LatLng[], profile: Profile = 'coche'): RoadState {
+  const key = points.length > 1 ? (profile === 'pie' ? FOOT : '') + keyOf(points) : '';
   const [result, setResult] = useState<{ key: string; state: RoadState }>({ key: '', state: { status: 'idle' } });
 
   useEffect(() => {

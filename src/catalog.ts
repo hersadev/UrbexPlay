@@ -1342,8 +1342,10 @@ const BY_ID = new Map(CATALOG.map((p) => [p.id, p]));
 export const isCatalogId = (id: string) => BY_ID.has(id);
 
 /** Contenido de una ficha sin los detalles que cambian al pasar por la hoja. */
+const point = (p: { lat: number; lng: number } | undefined) => (p ? `${p.lat.toFixed(5)},${p.lng.toFixed(5)}` : '');
 const content = (p: Place) =>
   JSON.stringify([
+    point(p.parkingAt), point(p.entryAt),
     p.name, p.type, p.lat, p.lng, !!p.approx, p.town, p.province, p.summary, p.history, p.legend,
     sourcesToText(p.sources), p.practical.state, p.practical.access, p.practical.ownership,
     p.practical.difficulty, p.practical.risks, p.practical.parking, p.practical.gear,

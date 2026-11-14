@@ -1,12 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CATALOG, isCatalogId, isOriginal } from './catalog';
-import { emptyData, loadData, saveData, stampChanges } from './store';
-import { cardinal, distanceKm, formatKm, nearestOnLine } from './geo';
+import {
+  emptyData,
+  loadCar,
+  loadData,
+  loadRecording,
+  saveCar,
+  saveData,
+  saveRecording,
+  saveTrack,
+  stampChanges,
+  uid,
+  type Car,
+  type Recording,
+} from './store';
+import { bearing, cardinal, distanceKm, drivePoint, formatKm, nearestOnLine } from './geo';
+import { localDate, trackKm } from './track';
 import { formatDuration, tripPoints, useRoadRoute } from './road';
 import { loadSyncConfig, mergeRemote, pushPull, saveSyncConfig, type SyncConfig, type SyncStatus } from './sync';
 import { paths, useNav, type Tab } from './nav';
-import type { Data, LatLng, Place, Position } from './types';
-import MapView, { type Focus } from './components/MapView';
+import { emptyDiary, type Data, type LatLng, type Place, type Position, type TrackPoint } from './types';
+import Compass, { requestCompass } from './components/Compass';
+import MapView, { type Focus, type Mark, type Target } from './components/MapView';
 import PlaceList from './components/PlaceList';
 import PlaceDetail from './components/PlaceDetail';
 import PlaceForm from './components/PlaceForm';
@@ -23,6 +38,20 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 const CATALOG_IDS = new Set(CATALOG.map((p) => p.id));
 
+/** A qué se guía: a un lugar o de vuelta al coche. */
+type GuideRef = { kind: 'lugar'; id: string } | { kind: 'coche' };
+
+/** A esta distancia del aparcamiento se da por aparcado y se pasa a guiar a pie. */
+const PARKED_KM = 0.06;
+
+function ago(ms: number): string {
+  const minutes = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (minutes < 1) return 'ahora mismo';
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  return hours < 24 ? `hace ${hours} h` : `hace ${Math.round(hours / 24)} d`;
+}
+
 export default function App() {
   const [data, setData] = useState<Data>(emptyData);
   const [loaded, setLoaded] = useState(false);
@@ -38,8 +67,15 @@ export default function App() {
   const [tracking, setTracking] = useState(false);
   /** El mapa acompaña a la posición (se suelta al mover el mapa a mano). */
   const [follow, setFollow] = useState(false);
-  /** Lugar hacia el que se guía. */
-  const [targetId, setTargetId] = useState<string | null>(null);
+  const [guideRef, setGuideRef] = useState<GuideRef | null>(null);
+  /** La guía va a pie (último tramo, o porque se ha elegido así). */
+  const [onFoot, setOnFoot] = useState(false);
+  const [car, setCar] = useState<Car | null>(null);
+  const [carMenu, setCarMenu] = useState(false);
+  /** Recorrido que se está grabando. */
+  const [rec, setRec] = useState<Recording | null>(null);
+  /** Recorrido guardado que se enseña en el mapa. */
+  const [shownTrack, setShownTrack] = useState<{ label: string; line: [number, number][]; key: number } | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [notice, setNotice] = useState('');
 
@@ -53,10 +89,21 @@ export default function App() {
   const dirty = useRef(false);
 
   useEffect(() => {
-    Promise.all([loadData(), loadSyncConfig()])
-      .then(([stored, config]) => {
+    Promise.all([
+      loadData(),
+      loadSyncConfig(),
+      loadCar().catch(() => undefined),
+      loadRecording().catch(() => undefined),
+    ])
+      .then(([stored, config, parked, recording]) => {
         setData(stored);
         setSyncConfig(config ?? null);
+        setCar(parked ?? null);
+        // Una grabación a medias (la app se cerró o se recargó) sigue donde iba.
+        if (recording) {
+          setRec(recording);
+          setTracking(true);
+        }
       })
       .catch(() => setNotice('No se han podido leer los datos guardados en este navegador.'))
       .finally(() => setLoaded(true));
@@ -165,7 +212,7 @@ export default function App() {
         );
         if (error.code === error.PERMISSION_DENIED) {
           setTracking(false);
-          setTargetId(null);
+          setGuideRef(null);
         }
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 },
@@ -187,18 +234,112 @@ export default function App() {
   /** Botón de posición: activa, vuelve a centrar si el mapa se ha movido, o apaga. */
   const toggleTracking = () => {
     if (!tracking || !follow) return startTracking();
-    setTracking(false);
     setFollow(false);
-    setTargetId(null);
+    // Mientras se graba, el GPS no se apaga: solo se suelta el mapa.
+    if (rec) return;
+    setTracking(false);
+    setGuideRef(null);
     setUserPos(null);
   };
 
-  const guideTo = (id: string) => {
-    setTargetId(id);
+  const guideTo = (ref: GuideRef) => {
+    // Es respuesta a un toque: el momento en que iOS deja pedir la brújula.
+    requestCompass();
+    setGuideRef(ref);
+    setOnFoot(false);
     setTracking(true);
     setFollow(false);
+    setCarMenu(false);
     nav.go(paths.tab('mapa'));
   };
+
+  // ── Dónde aparqué ──
+
+  const parkHere = () => {
+    setCarMenu(false);
+    const save = (p: LatLng) => {
+      const parked = { lat: p.lat, lng: p.lng, at: Date.now() };
+      setCar(parked);
+      saveCar(parked).catch(() => {});
+      setNotice('Coche guardado aquí. Toca su botón en el mapa para volver a él.');
+    };
+    if (tracking && userPos) return save(userPos);
+    if (!navigator.geolocation) return setNotice('Este dispositivo no permite obtener la ubicación.');
+    setNotice('Buscando tu posición para guardar el coche…');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => save({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => setNotice('No se ha podido obtener tu ubicación: el coche no se ha guardado.'),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+    );
+  };
+
+  const forgetCar = () => {
+    setCar(null);
+    setCarMenu(false);
+    saveCar(null).catch(() => {});
+    setGuideRef((ref) => (ref?.kind === 'coche' ? null : ref));
+  };
+
+  // ── Grabar el recorrido ──
+
+  const startRecording = (placeId: string) => {
+    if (rec) return;
+    const now = Date.now();
+    setRec({ placeId, startedAt: now, points: tracking && userPos ? [[userPos.lat, userPos.lng, now]] : [] });
+    setTracking(true);
+  };
+
+  // Cada posición nueva se añade al recorrido, salvo las imprecisas y el temblor del GPS.
+  useEffect(() => {
+    if (!userPos) return;
+    setRec((r) => {
+      if (!r || (userPos.accuracy ?? 0) > 50) return r;
+      const last = r.points[r.points.length - 1];
+      if (last && distanceKm({ lat: last[0], lng: last[1] }, userPos) < 0.005) return r;
+      return { ...r, points: [...r.points, [userPos.lat, userPos.lng, Date.now()]] };
+    });
+  }, [userPos]);
+
+  useEffect(() => {
+    if (loaded) saveRecording(rec).catch(() => {});
+  }, [rec, loaded]);
+
+  const stopRecording = async () => {
+    const done = rec;
+    if (!done) return;
+    setRec(null);
+    if (done.points.length < 2) {
+      setNotice('No se ha guardado ningún recorrido: no ha llegado a haber posición GPS.');
+      return;
+    }
+    try {
+      const track = await saveTrack(done.points);
+      const date = localDate(done.startedAt);
+      // Va a la visita de ese día si la hay y no tiene ya recorrido; si no, crea una.
+      update((d) => {
+        const diary = d.diary[done.placeId] ?? emptyDiary();
+        const index = diary.visits.findIndex((v) => v.date === date && !v.track);
+        const visits =
+          index >= 0
+            ? diary.visits.map((v, i) => (i === index ? { ...v, track } : v))
+            : [{ id: uid(), date, notes: '', photos: [], track }, ...diary.visits];
+        return { ...d, diary: { ...d.diary, [done.placeId]: { ...diary, status: 'visitado', visits } } };
+      });
+      setNotice(`Recorrido de ${formatKm(trackKm(done.points))} guardado en la visita del diario.`);
+    } catch {
+      setRec(done);
+      setNotice('No se ha podido guardar el recorrido. La grabación sigue en marcha.');
+    }
+  };
+
+  const showTrack = (points: TrackPoint[], label: string) => {
+    setShownTrack({ label, line: points.map(([lat, lng]) => [lat, lng]), key: Date.now() });
+    if (window.innerWidth < 900) nav.go(paths.tab('mapa'));
+  };
+  const recLine = useMemo<[number, number][] | null>(
+    () => (rec ? rec.points.map(([lat, lng]) => [lat, lng]) : null),
+    [rec],
+  );
 
   const openDetail = (id: string) => {
     nav.go(paths.place(id));
@@ -269,16 +410,45 @@ export default function App() {
     [showRoute, openTrip, byId],
   );
   const routeStart = (route && openTrip?.start) || null;
-  const routePoints = useMemo(() => tripPoints(routeStart ?? undefined, route ?? []), [routeStart, route]);
+  const routePoints = useMemo(
+    () => tripPoints(routeStart ?? undefined, (route ?? []).map(drivePoint)),
+    [routeStart, route],
+  );
   const road = useRoadRoute(routePoints);
 
-  const target = targetId ? (byId.get(targetId) ?? null) : null;
+  /** Destino de la guía: dónde se acaba y, si la ficha lo indica, dónde se deja antes el coche. */
+  const guidePlace = guideRef?.kind === 'lugar' ? (byId.get(guideRef.id) ?? null) : null;
+  const goal = useMemo<{ key: string; name: string; end: LatLng; park: LatLng | null } | null>(() => {
+    if (guideRef?.kind === 'coche') return car && { key: 'coche', name: 'Tu coche', end: car, park: null };
+    return (
+      guidePlace && {
+        key: guidePlace.id,
+        name: guidePlace.name,
+        end: guidePlace.entryAt ?? guidePlace,
+        park: guidePlace.parkingAt ?? null,
+      }
+    );
+  }, [guideRef, car, guidePlace]);
+  const walking = !!goal && (guideRef?.kind === 'coche' || onFoot);
+  /** Primera etapa: en coche hasta el aparcamiento. */
+  const toParking = !!goal?.park && !walking;
+  const target = useMemo<Target | null>(() => {
+    if (!goal) return null;
+    const point = toParking ? goal.park! : goal.end;
+    return { key: `${goal.key}:${toParking ? 'aparcar' : walking ? 'pie' : 'coche'}`, lat: point.lat, lng: point.lng };
+  }, [goal, toParking, walking]);
   const targetKm = target && userPos ? distanceKm(userPos, target) : null;
+  const arrived = targetKm !== null && targetKm < 0.03 && !toParking;
+
+  // Al llegar al aparcamiento, la guía sigue a pie hasta la entrada.
+  useEffect(() => {
+    if (toParking && targetKm !== null && targetKm < PARKED_KM) setOnFoot(true);
+  }, [toParking, targetKm]);
 
   /** Punto desde el que se calculó la ruta de la guía; cambia solo al salirse de ella. */
   const [guideFrom, setGuideFrom] = useState<LatLng | null>(null);
   const guidePoints = useMemo(() => (guideFrom && target ? [guideFrom, target] : []), [guideFrom, target]);
-  const guideRoad = useRoadRoute(guidePoints);
+  const guideRoad = useRoadRoute(guidePoints, walking ? 'pie' : 'coche');
   /** Lo que queda de ruta desde la posición actual. */
   const guide = useMemo(() => {
     if (guideRoad.status !== 'ok' || !userPos || guideRoad.route.line.length < 2) return null;
@@ -302,9 +472,10 @@ export default function App() {
     };
   }, [guideRoad, userPos]);
 
-  useEffect(() => setGuideFrom(null), [targetId]);
+  const targetKey = target?.key ?? null;
+  useEffect(() => setGuideFrom(null), [targetKey]);
   useEffect(() => {
-    if (!targetId || !userPos) return;
+    if (!targetKey || !userPos) return;
     const margin = Math.max(0.15, ((userPos.accuracy ?? 0) * 2) / 1000);
     setGuideFrom((from) => {
       if (!from) return userPos;
@@ -313,10 +484,28 @@ export default function App() {
       if (guideRoad.status === 'error' && distanceKm(from, userPos) > 0.5) return userPos;
       return from;
     });
-  }, [targetId, userPos, guide, guideRoad.status]);
+  }, [targetKey, userPos, guide, guideRoad.status]);
 
   // Con una salida abierta, el mapa enseña solo sus paradas.
   const mapPlaces = route && route.length ? route : (visible ?? places);
+
+  /** El coche y, de los lugares a la vista, sus aparcamientos y entradas. */
+  const marks = useMemo(() => {
+    const out: Mark[] = [];
+    for (const p of mapPlaces) {
+      if (p.parkingAt) out.push({ ...p.parkingAt, glyph: 'P', title: `Aparcamiento: ${p.name}` });
+      if (p.entryAt) out.push({ ...p.entryAt, glyph: '🚪', title: `Entrada: ${p.name}` });
+    }
+    if (car) out.push({ lat: car.lat, lng: car.lng, glyph: '🚗', title: 'Tu coche' });
+    return out;
+  }, [mapPlaces, car]);
+
+  const straight = target && userPos && targetKm !== null && (
+    <>
+      {formatKm(targetKm)} <Compass bearing={bearing(userPos, target)} fallback={`al ${cardinal(userPos, target)}`} /> en
+      línea recta
+    </>
+  );
 
   const panelHidden = tab === 'mapa' || picking;
 
@@ -375,7 +564,11 @@ export default function App() {
             shareUrl={isCatalogId(detail.id) ? location.href : undefined}
             onBack={() => nav.back(paths.tab('lugares'))}
             onShowOnMap={() => showOnMap(detail)}
-            onGuide={() => guideTo(detail.id)}
+            onGuide={() => guideTo({ kind: 'lugar', id: detail.id })}
+            recording={rec ? (rec.placeId === detail.id ? 'aqui' : 'otro') : null}
+            onRecord={() => startRecording(detail.id)}
+            onStopRecord={stopRecording}
+            onShowTrack={showTrack}
             onEdit={() => nav.go(paths.editPlace(detail.id))}
             onRemove={() => removePlace(detail)}
             onRestore={() => restoreOriginal(detail.id)}
@@ -431,6 +624,9 @@ export default function App() {
           userPos={userPos}
           follow={follow}
           target={target}
+          marks={marks}
+          track={shownTrack?.line ?? recLine}
+          trackFocus={shownTrack?.key}
           guideLine={guide?.line ?? null}
           onUserPan={() => setFollow(false)}
           focus={focus}
@@ -450,32 +646,98 @@ export default function App() {
         >
           ⌖
         </button>
-        {target && !picking && (
+        <button
+          className={`fab car${car ? ' on' : ''}`}
+          onClick={() => (car ? setCarMenu((open) => !open) : parkHere())}
+          title={car ? 'Tu coche' : 'Guardar aquí dónde he aparcado'}
+          aria-label={car ? 'Tu coche' : 'Guardar aquí dónde he aparcado'}
+        >
+          🚗
+        </button>
+        {goal && target && !picking && (
           <div className="banner guide" role="status">
             <span className="guide-text">
-              <strong>{target.name}</strong>
-              {targetKm === null
-                ? 'Buscando tu posición…'
-                : targetKm < 0.03
-                  ? 'Has llegado'
-                  : guide && guide.km > 0.1
-                    ? `${formatKm(guide.km)} · ${formatDuration(guide.minutes)} por carretera`
-                    : `${formatKm(targetKm)} al ${cardinal(userPos!, target)} en línea recta`}
-              {targetKm !== null && targetKm >= 0.03 && guide && guide.km > 0.1 && (
-                <span className="muted small">
-                  {formatKm(targetKm)} al {cardinal(userPos!, target)} en línea recta
-                </span>
+              <strong>{goal.name}</strong>
+              {targetKm === null ? (
+                'Buscando tu posición…'
+              ) : arrived ? (
+                'Has llegado'
+              ) : guide && guide.km > 0.1 ? (
+                `${formatKm(guide.km)} · ${formatDuration(guide.minutes)} ${
+                  toParking ? 'hasta el aparcamiento' : walking ? 'a pie' : 'por carretera'
+                }`
+              ) : (
+                <span>{straight}</span>
               )}
+              {!arrived && guide && guide.km > 0.1 && <span className="muted small">{straight}</span>}
               {guideRoad.status === 'error' && (
-                <span className="muted small">Sin conexión: no se puede calcular la ruta por carretera</span>
+                <span className="muted small">Sin conexión: no se puede calcular la ruta</span>
               )}
               {userPos?.accuracy && userPos.accuracy > 50 && (
                 <span className="muted small">GPS poco preciso (±{Math.round(userPos.accuracy)} m)</span>
               )}
             </span>
-            <button className="btn small" onClick={() => setTargetId(null)}>
+            <span className="guide-actions">
+              {guideRef?.kind === 'lugar' && (
+                <button
+                  className="btn small"
+                  onClick={() => setOnFoot((foot) => !foot)}
+                  title={onFoot ? 'Guiar por carretera' : 'Guiar a pie hasta la entrada'}
+                >
+                  {onFoot ? 'En coche' : 'A pie'}
+                </button>
+              )}
+              <button className="btn small" onClick={() => setGuideRef(null)}>
+                Terminar
+              </button>
+            </span>
+          </div>
+        )}
+        {rec && !picking && !carMenu && !shownTrack && (
+          <div className="banner rec" role="status">
+            <span>
+              <span className="rec-dot" aria-hidden="true">
+                ●
+              </span>{' '}
+              Grabando{byId.get(rec.placeId) ? ` en ${byId.get(rec.placeId)!.name}` : ''} ·{' '}
+              {formatKm(trackKm(rec.points))}
+            </span>
+            <button className="btn small" onClick={stopRecording}>
               Terminar
             </button>
+          </div>
+        )}
+        {shownTrack && !picking && !carMenu && (
+          <div className="banner">
+            <span>
+              Recorrido: {shownTrack.label}
+              {rec && ' (la grabación sigue en marcha)'}
+            </span>
+            <button className="btn small" onClick={() => setShownTrack(null)}>
+              Quitar
+            </button>
+          </div>
+        )}
+        {car && carMenu && !picking && (
+          <div className="banner car-menu">
+            <span>
+              <strong>Tu coche</strong> · aparcado {ago(car.at)}
+              {userPos && ` · a ${formatKm(distanceKm(userPos, car))}`}
+            </span>
+            <span className="row">
+              <button className="btn small primary" onClick={() => guideTo({ kind: 'coche' })}>
+                Guiarme
+              </button>
+              <button className="btn small" onClick={parkHere}>
+                Está aquí
+              </button>
+              <button className="btn small" onClick={forgetCar}>
+                Quitar
+              </button>
+              <button className="btn small" onClick={() => setCarMenu(false)}>
+                Cerrar
+              </button>
+            </span>
           </div>
         )}
         {picking && (

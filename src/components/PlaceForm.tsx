@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatCoords } from '../geo';
 import { parseLocation } from '../import';
 import { reverseGeocode, searchOsm, searchWikipedia, type SearchResult } from '../search';
@@ -47,6 +47,10 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
       gear: '',
     },
   );
+  const [parkingAt, setParkingAt] = useState(place?.parkingAt ? formatCoords(place.parkingAt) : '');
+  const [entryAt, setEntryAt] = useState(place?.entryAt ? formatCoords(place.entryAt) : '');
+  /** Campo que recibirá el punto que se elija en el mapa. */
+  const pickFor = useRef<'lugar' | 'aparcamiento' | 'entrada'>('lugar');
   const [coordsTouched, setCoordsTouched] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -114,11 +118,59 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
   };
 
   useEffect(() => {
-    if (picked) {
+    if (!picked) return;
+    if (pickFor.current === 'aparcamiento') setParkingAt(formatCoords(picked));
+    else if (pickFor.current === 'entrada') setEntryAt(formatCoords(picked));
+    else {
       setCoords(formatCoords(picked));
       setCoordsTouched(true);
     }
   }, [picked]);
+
+  /** Campo de un punto opcional de la ficha (aparcamiento o entrada). */
+  const pointField = (
+    label: string,
+    value: string,
+    setValue: (text: string) => void,
+    target: 'aparcamiento' | 'entrada',
+  ) => (
+    <>
+      <label className="field">
+        {label}
+        <input
+          className="input"
+          value={value}
+          placeholder="Opcional: coordenadas o enlace de Google Maps"
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={(e) => {
+            try {
+              const located = parseLocation(e.target.value);
+              if (located) setValue(formatCoords(located.point));
+            } catch {
+              /* se avisa al guardar */
+            }
+          }}
+        />
+      </label>
+      <div className="row">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            pickFor.current = target;
+            onPick();
+          }}
+        >
+          Elegir en el mapa
+        </button>
+        {userPos && (
+          <button type="button" className="btn" onClick={() => setValue(formatCoords(userPos))}>
+            Usar mi posición
+          </button>
+        )}
+      </div>
+    </>
+  );
 
   const setP = <K extends keyof typeof practical>(key: K, value: (typeof practical)[K]) =>
     setPractical((prev) => ({ ...prev, [key]: value }));
@@ -126,8 +178,18 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     let point = null;
+    let parking: LatLng | undefined;
+    let entry: LatLng | undefined;
+    const optional = (text: string, what: string) => {
+      if (!text.trim()) return undefined;
+      const found = parseLocation(text)?.point;
+      if (!found) throw new Error(`No se entienden las coordenadas ${what}.`);
+      return { lat: found.lat, lng: found.lng };
+    };
     try {
       point = parseLocation(coords)?.point ?? null;
+      parking = optional(parkingAt, 'del aparcamiento');
+      entry = optional(entryAt, 'de la entrada');
     } catch (err) {
       return setError(err instanceof Error ? err.message : '');
     }
@@ -148,6 +210,8 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
       legend: legend.trim(),
       sources: textToSources(sources),
       practical,
+      ...(parking && { parkingAt: parking }),
+      ...(entry && { entryAt: entry }),
     });
   };
 
@@ -248,7 +312,14 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
         />
       </label>
       <div className="row">
-        <button type="button" className="btn" onClick={onPick}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            pickFor.current = 'lugar';
+            onPick();
+          }}
+        >
           Elegir en el mapa
         </button>
         {userPos && (
@@ -349,6 +420,8 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
         Dónde aparcar
         <input className="input" value={practical.parking} onChange={(e) => setP('parking', e.target.value)} />
       </label>
+      {pointField('Punto del aparcamiento (hasta aquí se guía en coche)', parkingAt, setParkingAt, 'aparcamiento')}
+      {pointField('Punto de la entrada (hasta aquí se guía a pie)', entryAt, setEntryAt, 'entrada')}
       <label className="field">
         Equipo recomendado
         <input className="input" value={practical.gear} onChange={(e) => setP('gear', e.target.value)} />

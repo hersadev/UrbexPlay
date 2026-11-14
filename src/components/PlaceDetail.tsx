@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { distanceKm, formatCoords, formatKm, googleMapsRoute } from '../geo';
-import { deletePhoto, getPhoto, savePhoto, uid } from '../store';
+import { distanceKm, drivePoint, formatCoords, formatKm, googleMapsRoute } from '../geo';
+import { formatDuration } from '../road';
+import { deletePhoto, deleteTrack, getPhoto, getTrack, savePhoto, uid } from '../store';
+import { downloadGpx, localDate, trackKm, trackMinutes } from '../track';
 import {
   DIFFICULTY_LABEL,
   OWNERSHIP_LABEL,
@@ -11,6 +13,7 @@ import {
   type LatLng,
   type Place,
   type Status,
+  type TrackPoint,
 } from '../types';
 
 interface Props {
@@ -25,6 +28,11 @@ interface Props {
   backLabel: string;
   /** Enlace a esta ficha; solo en las del catálogo, que existen en cualquier dispositivo. */
   shareUrl?: string;
+  /** Se está grabando un recorrido: en este lugar o en otro. */
+  recording: 'aqui' | 'otro' | null;
+  onRecord: () => void;
+  onStopRecord: () => void;
+  onShowTrack: (points: TrackPoint[], label: string) => void;
   onBack: () => void;
   onShowOnMap: () => void;
   onGuide: () => void;
@@ -62,7 +70,48 @@ function Photo({ id, onDelete }: { id: string; onDelete: () => void }) {
   );
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+function Track({
+  id,
+  name,
+  onShow,
+  onDelete,
+}: {
+  id: string;
+  name: string;
+  onShow: (points: TrackPoint[]) => void;
+  onDelete: () => void;
+}) {
+  const [points, setPoints] = useState<TrackPoint[] | null>();
+  useEffect(() => {
+    let cancelled = false;
+    getTrack(id).then((found) => !cancelled && setPoints(found ?? null));
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+  if (points === undefined) return null;
+  if (!points) return <p className="muted small">El recorrido de esta visita se grabó en otro dispositivo.</p>;
+  return (
+    <div className="track">
+      <span>
+        Recorrido: <strong>{formatKm(trackKm(points))}</strong> · {formatDuration(trackMinutes(points))}
+      </span>
+      <span className="row">
+        <button className="btn small" onClick={() => onShow(points)}>
+          Ver en el mapa
+        </button>
+        <button className="btn small" onClick={() => downloadGpx(name, points)}>
+          Exportar GPX
+        </button>
+        <button className="link danger" onClick={onDelete}>
+          Borrar
+        </button>
+      </span>
+    </div>
+  );
+}
+
+const today = () => localDate();
 
 export default function PlaceDetail({
   place,
@@ -73,6 +122,10 @@ export default function PlaceDetail({
   original,
   backLabel,
   shareUrl,
+  recording,
+  onRecord,
+  onStopRecord,
+  onShowTrack,
   onBack,
   onShowOnMap,
   onGuide,
@@ -104,7 +157,9 @@ export default function PlaceDetail({
 
   const removeVisit = (id: string) => {
     if (!confirm('¿Borrar esta visita y sus fotos?')) return;
-    diary.visits.find((v) => v.id === id)?.photos.forEach(deletePhoto);
+    const visit = diary.visits.find((v) => v.id === id);
+    visit?.photos.forEach(deletePhoto);
+    if (visit?.track) deleteTrack(visit.track);
     setDiary((d) => ({ ...d, visits: d.visits.filter((v) => v.id !== id) }));
   };
 
@@ -123,6 +178,19 @@ export default function PlaceDetail({
     } finally {
       setBusy(false);
     }
+  };
+
+  const removeTrack = (visitId: string, trackId: string) => {
+    if (!confirm('¿Borrar el recorrido grabado de esta visita?')) return;
+    deleteTrack(trackId);
+    setDiary((d) => ({
+      ...d,
+      visits: d.visits.map((v) => {
+        if (v.id !== visitId) return v;
+        const { track: _gone, ...rest } = v;
+        return rest;
+      }),
+    }));
   };
 
   const removePhoto = (visitId: string, photoId: string) => {
@@ -172,7 +240,10 @@ export default function PlaceDetail({
       ? `¿Ocultar «${place.name}»? Podrás recuperarlo desde Ajustes. Se borrarán tus notas de este lugar.`
       : `¿Eliminar «${place.name}» y tus notas de este lugar? No se puede deshacer.`;
     if (confirm(message)) {
-      diary.visits.forEach((v) => v.photos.forEach(deletePhoto));
+      diary.visits.forEach((v) => {
+        v.photos.forEach(deletePhoto);
+        if (v.track) deleteTrack(v.track);
+      });
       onRemove();
     }
   };
@@ -209,10 +280,10 @@ export default function PlaceDetail({
         <button className="btn" onClick={onShowOnMap}>
           Ver en el mapa
         </button>
-        <button className="btn" onClick={onGuide} title="Sigue tu posición y marca la distancia y el rumbo hasta el lugar">
+        <button className="btn" onClick={onGuide} title="Sigue tu posición y te lleva hasta el lugar: en coche al aparcamiento y a pie hasta la entrada">
           ⌖ Guiarme
         </button>
-        <a className="btn" href={googleMapsRoute([place])} target="_blank" rel="noreferrer">
+        <a className="btn" href={googleMapsRoute([drivePoint(place)])} target="_blank" rel="noreferrer">
           Cómo llegar ↗
         </a>
         {shareUrl && (
@@ -311,6 +382,18 @@ export default function PlaceDetail({
               <dd>{p.gear}</dd>
             </>
           )}
+          {place.parkingAt && (
+            <>
+              <dt>Punto para aparcar</dt>
+              <dd>{formatCoords(place.parkingAt)}</dd>
+            </>
+          )}
+          {place.entryAt && (
+            <>
+              <dt>Entrada</dt>
+              <dd>{formatCoords(place.entryAt)}</dd>
+            </>
+          )}
           <dt>Coordenadas</dt>
           <dd>
             <button
@@ -352,10 +435,31 @@ export default function PlaceDetail({
 
         <div className="row between">
           <h3>Visitas ({diary.visits.length})</h3>
-          <button className="btn" onClick={addVisit}>
-            + Registrar visita
-          </button>
+          <span className="row">
+            {recording === 'aqui' ? (
+              <button className="btn danger" onClick={onStopRecord}>
+                ■ Terminar grabación
+              </button>
+            ) : (
+              <button
+                className="btn"
+                onClick={onRecord}
+                disabled={recording === 'otro'}
+                title="Graba por dónde te mueves y lo guarda en una visita, para verlo en el mapa o exportarlo en GPX"
+              >
+                ● Grabar recorrido
+              </button>
+            )}
+            <button className="btn" onClick={addVisit}>
+              + Registrar visita
+            </button>
+          </span>
         </div>
+        {recording === 'aqui' && (
+          <p className="muted small">
+            Grabando. Mantén la app abierta y a la vista: con la pantalla apagada o en otra app el GPS se detiene.
+          </p>
+        )}
 
         {diary.visits.map((v) => (
           <div className="visit" key={v.id}>
@@ -379,6 +483,14 @@ export default function PlaceDetail({
               onChange={(e) => patchVisit(v.id, { notes: e.target.value })}
               aria-label="Notas de la visita"
             />
+            {v.track && (
+              <Track
+                id={v.track}
+                name={`${place.name} ${v.date}`.trim()}
+                onShow={(points) => onShowTrack(points, `${place.name}${v.date ? ` · ${v.date}` : ''}`)}
+                onDelete={() => removeTrack(v.id, v.track!)}
+              />
+            )}
             <div className="photos">
               {v.photos.map((id) => (
                 <Photo key={id} id={id} onDelete={() => removePhoto(v.id, id)} />

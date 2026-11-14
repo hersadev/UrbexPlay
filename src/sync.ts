@@ -5,6 +5,7 @@ import {
   TYPES,
   type Data,
   type Diary,
+  type LatLng,
   type Ownership,
   type Place,
   type PlaceType,
@@ -50,6 +51,8 @@ const toNumber = (value: string | undefined) => Number((value ?? '').trim().repl
 
 // ── De la app a la hoja ──
 
+const pointToText = (p: LatLng | undefined) => (p ? `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}` : '');
+
 const placeRow = (p: Place): Row => ({
   nombre: p.name,
   tipo: p.type,
@@ -69,6 +72,8 @@ const placeRow = (p: Place): Row => ({
   riesgos: p.practical.risks,
   aparcar: p.practical.parking,
   equipo: p.practical.gear,
+  aparcamiento_coords: pointToText(p.parkingAt),
+  entrada_coords: pointToText(p.entryAt),
 });
 
 function toTables(data: Data): Tables {
@@ -109,7 +114,20 @@ function toTables(data: Data): Tables {
 
 // ── De la hoja a la app ──
 
-function rowToPlace(row: Row): Place | null {
+/** «37.99200, -1.13000» → punto. Vacío o ilegible: sin punto. */
+function textToPoint(text: string): LatLng | undefined {
+  const match = /^\s*(-?\d+(?:[.]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.]\d+)?)\s*$/.exec(text);
+  if (!match) return undefined;
+  const lat = Number(match[1]);
+  const lng = Number(match[2]);
+  return Math.abs(lat) > 90 || Math.abs(lng) > 180 ? undefined : { lat, lng };
+}
+
+/**
+ * Una hoja con un script anterior no tiene las columnas de aparcamiento y
+ * entrada: en ese caso se conserva lo que hubiera en este dispositivo (`previous`).
+ */
+function rowToPlace(row: Row, previous?: Place): Place | null {
   const lat = toNumber(row.lat);
   const lng = toNumber(row.lng);
   const name = (row.nombre ?? '').trim();
@@ -118,6 +136,8 @@ function rowToPlace(row: Row): Place | null {
   const type = (row.tipo ?? '').trim().toLowerCase() as PlaceType;
   const ownership = (row.propiedad ?? '').trim().toLowerCase() as Ownership;
   const difficulty = Math.round(toNumber(row.dificultad));
+  const parkingAt = row.aparcamiento_coords === undefined ? previous?.parkingAt : textToPoint(row.aparcamiento_coords);
+  const entryAt = row.entrada_coords === undefined ? previous?.entryAt : textToPoint(row.entrada_coords);
   return {
     id: row.id.trim(),
     name,
@@ -140,6 +160,8 @@ function rowToPlace(row: Row): Place | null {
       parking: row.aparcar ?? '',
       gear: row.equipo ?? '',
     },
+    ...(parkingAt && { parkingAt }),
+    ...(entryAt && { entryAt }),
     custom: true,
   };
 }
@@ -222,7 +244,7 @@ export function mergeRemote(data: Data, remote: Partial<Tables>): { data: Data; 
 
   each('Lugares', 'p', (id, row, deleted) => {
     if (deleted) return custom.delete(id), true;
-    const place = rowToPlace(row);
+    const place = rowToPlace(row, custom.get(id));
     if (!place) return false;
     custom.set(id, place);
     return true;
