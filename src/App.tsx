@@ -4,6 +4,7 @@ import { emptyData, loadData, saveData, stampChanges } from './store';
 import { cardinal, distanceKm, formatKm, nearestOnLine } from './geo';
 import { formatDuration, tripPoints, useRoadRoute } from './road';
 import { loadSyncConfig, mergeRemote, pushPull, saveSyncConfig, type SyncConfig, type SyncStatus } from './sync';
+import { paths, useNav, type Tab } from './nav';
 import type { Data, LatLng, Place, Position } from './types';
 import MapView, { type Focus } from './components/MapView';
 import PlaceList from './components/PlaceList';
@@ -12,8 +13,6 @@ import PlaceForm from './components/PlaceForm';
 import ImportPlaces from './components/ImportPlaces';
 import Trips from './components/Trips';
 import Settings from './components/Settings';
-
-type Tab = 'mapa' | 'lugares' | 'salidas' | 'ajustes';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'mapa', label: 'Mapa', icon: '◎' },
@@ -27,15 +26,13 @@ const CATALOG_IDS = new Set(CATALOG.map((p) => p.id));
 export default function App() {
   const [data, setData] = useState<Data>(emptyData);
   const [loaded, setLoaded] = useState(false);
-  const [tab, setTab] = useState<Tab>(() => (window.innerWidth >= 900 ? 'lugares' : 'mapa'));
-  const [detailId, setDetailId] = useState<string | null>(null);
-  /** `null` = sin formulario; 'nuevo' o el id del lugar que se edita. */
-  const [editing, setEditing] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [picking, setPicking] = useState(false);
+  // La pantalla abierta sale de la URL (ver nav.ts): el botón atrás del móvil la deshace paso a paso.
+  const nav = useNav();
+  const { tab, importing, picking, tripOnMap } = nav.route;
+  const detailId = nav.route.placeId;
+  const openTripId = nav.route.tripId;
   const [picked, setPicked] = useState<LatLng | null>(null);
   const [visible, setVisible] = useState<Place[] | null>(null);
-  const [openTripId, setOpenTripId] = useState<string | null>(null);
   const [userPos, setUserPos] = useState<Position | null>(null);
   /** Seguimiento continuo del GPS activo. */
   const [tracking, setTracking] = useState(false);
@@ -45,8 +42,6 @@ export default function App() {
   const [targetId, setTargetId] = useState<string | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [notice, setNotice] = useState('');
-  /** En móvil: el mapa enseña la salida abierta en lugar de todos los lugares. */
-  const [tripOnMap, setTripOnMap] = useState(false);
 
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: 'off' });
@@ -132,6 +127,13 @@ export default function App() {
 
   const byId = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
   const detail = detailId ? byId.get(detailId) : undefined;
+  /** `null` = sin formulario; 'nuevo' o el id del lugar que se edita. */
+  const editing = nav.route.form === 'nuevo' ? 'nuevo' : nav.route.form === 'editar' && detail ? detail.id : null;
+
+  // Al cerrar el formulario, por el camino que sea, se olvida el punto elegido en el mapa.
+  useEffect(() => {
+    if (!editing) setPicked(null);
+  }, [editing]);
 
   /** Todo cambio hecho por el usuario pasa por aquí para quedar marcado y sincronizarse. */
   const update = useCallback((fn: (d: Data) => Data) => {
@@ -195,14 +197,11 @@ export default function App() {
     setTargetId(id);
     setTracking(true);
     setFollow(false);
-    setTripOnMap(false);
-    setTab('mapa');
+    nav.go(paths.tab('mapa'));
   };
 
   const openDetail = (id: string) => {
-    setEditing(null);
-    setDetailId(id);
-    setTab('lugares');
+    nav.go(paths.place(id));
     // En escritorio el mapa sigue a la vista: lo centra en el lugar abierto.
     const place = byId.get(id);
     if (place && window.innerWidth >= 900) setFocus({ lat: place.lat, lng: place.lng, zoom: 13, key: Date.now() });
@@ -210,7 +209,7 @@ export default function App() {
 
   const showOnMap = (p: LatLng) => {
     setFocus({ ...p, zoom: 14, key: Date.now() });
-    if (window.innerWidth < 900) setTab('mapa');
+    if (window.innerWidth < 900) nav.go(paths.tab('mapa'));
   };
 
   const savePlace = (place: Place) => {
@@ -218,15 +217,14 @@ export default function App() {
       ...d,
       custom: [...d.custom.filter((p) => p.id !== place.id), { ...place, custom: true }],
     }));
-    setEditing(null);
-    setPicked(null);
-    setDetailId(place.id);
-    setTab('lugares');
+    // Uno nuevo ocupa el sitio del formulario (atrás vuelve a la lista); al editar se vuelve a la ficha.
+    if (nav.route.form === 'nuevo') nav.go(paths.place(place.id), true);
+    else nav.back(paths.place(place.id));
   };
 
   const importPlaces = (list: Place[]) => {
     update((d) => ({ ...d, custom: [...d.custom, ...list] }));
-    setImporting(false);
+    nav.back(paths.tab('lugares'));
     setNotice(`${list.length} ${list.length === 1 ? 'lugar importado' : 'lugares importados'}.`);
   };
 
@@ -255,7 +253,7 @@ export default function App() {
         trips: d.trips.map((t) => ({ ...t, placeIds: t.placeIds.filter((id) => id !== place.id) })),
       };
     });
-    setDetailId(null);
+    nav.back(paths.tab('lugares'));
   };
 
   const restoreOriginal = (id: string) =>
@@ -333,12 +331,7 @@ export default function App() {
             key={t.id}
             className={`nav-btn${t.id === 'ajustes' && syncStatus.state === 'error' ? ' alert' : ''}`}
             aria-current={tab === t.id ? 'page' : undefined}
-            onClick={() => {
-              setTab(t.id);
-              setImporting(false);
-              setPicking(false);
-              setTripOnMap(false);
-            }}
+            onClick={() => nav.go(paths.tab(t.id))}
           >
             <span className="nav-icon" aria-hidden="true">
               {t.icon}
@@ -350,19 +343,16 @@ export default function App() {
 
       <main className="panel" hidden={panelHidden}>
         {importing ? (
-          <ImportPlaces places={places} onImport={importPlaces} onCancel={() => setImporting(false)} />
+          <ImportPlaces places={places} onImport={importPlaces} onCancel={() => nav.back(paths.tab('lugares'))} />
         ) : editing ? (
           <PlaceForm
             key={editing}
             place={editing === 'nuevo' ? undefined : byId.get(editing)}
             picked={picked}
             userPos={userPos}
-            onPick={() => setPicking(true)}
+            onPick={() => nav.go(`${nav.hash}/situar`)}
             onSave={savePlace}
-            onCancel={() => {
-              setEditing(null);
-              setPicked(null);
-            }}
+            onCancel={() => nav.back(detail ? paths.place(detail.id) : paths.tab('lugares'))}
           />
         ) : tab === 'lugares' && detail ? (
           <PlaceDetail
@@ -373,10 +363,20 @@ export default function App() {
             userPos={userPos}
             isCatalog={isCatalogId(detail.id)}
             original={isOriginal(detail)}
-            onBack={() => setDetailId(null)}
+            backLabel={
+              nav.from.startsWith('#/salida/') && !nav.from.endsWith('/mapa')
+                ? '← Volver a la salida'
+                : nav.from === '#/mapa' || nav.from.endsWith('/mapa')
+                  ? '← Volver al mapa'
+                  : !nav.from || nav.from === '#/lugares'
+                    ? '← Todos los lugares'
+                    : '← Volver'
+            }
+            shareUrl={isCatalogId(detail.id) ? location.href : undefined}
+            onBack={() => nav.back(paths.tab('lugares'))}
             onShowOnMap={() => showOnMap(detail)}
             onGuide={() => guideTo(detail.id)}
-            onEdit={() => setEditing(detail.id)}
+            onEdit={() => nav.go(paths.editPlace(detail.id))}
             onRemove={() => removePlace(detail)}
             onRestore={() => restoreOriginal(detail.id)}
           />
@@ -386,13 +386,10 @@ export default function App() {
             update={update}
             places={places}
             openId={openTripId}
-            setOpenId={setOpenTripId}
+            setOpenId={(id) => (id ? nav.go(paths.trip(id)) : nav.back(paths.tab('salidas')))}
             onOpenPlace={openDetail}
             onShowOnMap={() => {
-              if (window.innerWidth < 900) {
-                setTripOnMap(true);
-                setTab('mapa');
-              }
+              if (window.innerWidth < 900 && openTripId) nav.go(paths.tripMap(openTripId));
             }}
           />
         ) : tab === 'ajustes' ? (
@@ -417,8 +414,8 @@ export default function App() {
             userPos={userPos}
             onLocate={startTracking}
             onOpen={openDetail}
-            onAdd={() => setEditing('nuevo')}
-            onImport={() => setImporting(true)}
+            onAdd={() => nav.go(paths.newPlace)}
+            onImport={() => nav.go(paths.importPlaces)}
             onVisible={setVisible}
           />
         </div>
@@ -440,7 +437,7 @@ export default function App() {
           picking={picking}
           onPick={(p) => {
             setPicked(p);
-            setPicking(false);
+            nav.back(nav.hash.replace(/\/situar$/, ''));
           }}
           onOpen={openDetail}
         />
@@ -484,7 +481,7 @@ export default function App() {
         {picking && (
           <div className="banner">
             Toca el mapa para situar el lugar
-            <button className="btn small" onClick={() => setPicking(false)}>
+            <button className="btn small" onClick={() => nav.back(nav.hash.replace(/\/situar$/, ''))}>
               Cancelar
             </button>
           </div>

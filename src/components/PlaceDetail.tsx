@@ -21,6 +21,10 @@ interface Props {
   isCatalog: boolean;
   /** Ficha del catálogo que nadie ha cambiado. */
   original: boolean;
+  /** Texto del enlace de vuelta, según de dónde se haya llegado. */
+  backLabel: string;
+  /** Enlace a esta ficha; solo en las del catálogo, que existen en cualquier dispositivo. */
+  shareUrl?: string;
   onBack: () => void;
   onShowOnMap: () => void;
   onGuide: () => void;
@@ -67,6 +71,8 @@ export default function PlaceDetail({
   userPos,
   isCatalog,
   original,
+  backLabel,
+  shareUrl,
   onBack,
   onShowOnMap,
   onGuide,
@@ -145,6 +151,19 @@ export default function PlaceDetail({
     });
   };
 
+  const [shared, setShared] = useState(false);
+  const share = async () => {
+    if (!shareUrl) return;
+    try {
+      if (navigator.share) return await navigator.share({ title: place.name, url: shareUrl });
+      await navigator.clipboard.writeText(shareUrl);
+      setShared(true);
+      setTimeout(() => setShared(false), 1500);
+    } catch {
+      /* se ha cancelado el menú de compartir */
+    }
+  };
+
   const inTrips = data.trips.filter((t) => t.placeIds.includes(place.id));
   const edited = isCatalog && !original;
 
@@ -161,7 +180,7 @@ export default function PlaceDetail({
   return (
     <article className="view detail">
       <button className="link back" onClick={onBack}>
-        ← Todos los lugares
+        {backLabel}
       </button>
 
       <header>
@@ -196,6 +215,11 @@ export default function PlaceDetail({
         <a className="btn" href={googleMapsRoute([place])} target="_blank" rel="noreferrer">
           Cómo llegar ↗
         </a>
+        {shareUrl && (
+          <button className="btn" onClick={share}>
+            {shared ? 'Enlace copiado' : 'Compartir'}
+          </button>
+        )}
         <select className="input grow" value="" onChange={(e) => addToTrip(e.target.value)} aria-label="Añadir a una salida">
           <option value="">Añadir a una salida…</option>
           {data.trips.map((t) => (
