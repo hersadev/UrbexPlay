@@ -44,22 +44,33 @@ export default function TripStart({ start, suggestions, onChange }: Props) {
     if (!navigator.geolocation) return setNote('Este dispositivo no permite obtener la ubicación.');
     setBusy('locate');
     setNote('');
+    const found = async (pos: GeolocationPosition) => {
+      const point = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const { town } = await reverseGeocode(point);
+      setBusy(null);
+      choose({ ...point, label: town || 'Mi ubicación' });
+    };
+    const failed = (error: GeolocationPositionError) => {
+      setBusy(null);
+      setNote(
+        error.code === error.PERMISSION_DENIED
+          ? 'No hay permiso para usar tu ubicación. Actívalo en los ajustes del navegador.'
+          : 'No se ha podido obtener tu ubicación.',
+      );
+    };
+    // Siempre una lectura nueva (`maximumAge: 0`): una guardada puede ser de antes de moverte.
+    // Primero con GPS; bajo techo puede no llegar a tiempo y entonces vale la posición por red.
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const point = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const { town } = await reverseGeocode(point);
-        setBusy(null);
-        choose({ ...point, label: town || 'Mi ubicación' });
-      },
+      found,
       (error) => {
-        setBusy(null);
-        setNote(
-          error.code === error.PERMISSION_DENIED
-            ? 'No hay permiso para usar tu ubicación. Actívalo en los ajustes del navegador.'
-            : 'No se ha podido obtener tu ubicación.',
-        );
+        if (error.code === error.PERMISSION_DENIED) return failed(error);
+        navigator.geolocation.getCurrentPosition(found, failed, {
+          enableHighAccuracy: false,
+          maximumAge: 0,
+          timeout: 15000,
+        });
       },
-      { enableHighAccuracy: false, maximumAge: 60000, timeout: 20000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
     );
   };
 
