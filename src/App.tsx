@@ -27,6 +27,7 @@ import {
   type SyncConfig,
   type SyncStatus,
 } from './sync';
+import { filterCount, noFilter, toggleType } from './filter';
 import { paths, useNav, type Tab } from './nav';
 import {
   emptyDiary,
@@ -38,6 +39,8 @@ import {
   type Position,
   type Status,
   type TrackPoint,
+  TYPE_META,
+  TYPES,
 } from './types';
 import Compass, { requestCompass } from './components/Compass';
 import MapView, { type Focus, type Mark, type Target } from './components/MapView';
@@ -81,6 +84,9 @@ export default function App() {
   const openTripId = nav.route.tripId;
   const [picked, setPicked] = useState<LatLng | null>(null);
   const [visible, setVisible] = useState<Place[] | null>(null);
+  /** Filtro de lugares: lo comparten la lista y el mapa. */
+  const [filter, setFilter] = useState(noFilter);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [userPos, setUserPos] = useState<Position | null>(null);
   /** Seguimiento continuo del GPS activo. */
   const [tracking, setTracking] = useState(false);
@@ -620,7 +626,7 @@ export default function App() {
       if (p.parkingAt) out.push({ ...p.parkingAt, glyph: 'P', title: `Aparcamiento: ${p.name}` });
       if (p.entryAt) out.push({ ...p.entryAt, glyph: '🚪', title: `Entrada: ${p.name}` });
     }
-    if (car) out.push({ lat: car.lat, lng: car.lng, glyph: '🚗', title: 'Tu coche' });
+    if (car) out.push({ lat: car.lat, lng: car.lng, glyph: '🚗', title: 'Tu coche', keep: true });
     return out;
   }, [mapPlaces, car]);
 
@@ -759,6 +765,8 @@ export default function App() {
             onAdd={() => nav.go(paths.newPlace)}
             onImport={() => nav.go(paths.importPlaces)}
             onVisible={setVisible}
+            filter={filter}
+            setFilter={setFilter}
           />
         </div>
       </main>
@@ -795,6 +803,78 @@ export default function App() {
         >
           ⌖
         </button>
+        {!picking && !(route && route.length) && (
+          <div className="map-filter">
+            <button
+              className={`btn small map-filter-toggle${filterCount(filter) ? ' on' : ''}`}
+              onClick={() => setFilterOpen((open) => !open)}
+              aria-expanded={filterOpen}
+            >
+              {filterCount(filter)
+                ? `Filtro: ${mapPlaces.length} de ${places.length}`
+                : `Filtrar · ${places.length} lugares`}{' '}
+              {filterOpen ? '▴' : '▾'}
+            </button>
+            {filterOpen && (
+              <div className="map-filter-panel">
+                <div className="chips" role="group" aria-label="Tipo de lugar">
+                  {TYPES.map((t) => (
+                    <button
+                      key={t}
+                      className="chip"
+                      aria-pressed={filter.types.has(t)}
+                      style={{ '--c': TYPE_META[t].color } as React.CSSProperties}
+                      onClick={() => setFilter((f) => toggleType(f, t))}
+                    >
+                      <span aria-hidden="true">{TYPE_META[t].glyph}</span> {TYPE_META[t].label}
+                    </button>
+                  ))}
+                </div>
+                <div className="chips" role="group" aria-label="Estado en mi diario">
+                  {(
+                    [
+                      ['pendiente', '☆ Pendientes'],
+                      ['visitado', '✓ Visitados'],
+                      ['ninguno', 'Sin marcar'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      className="chip plain"
+                      aria-pressed={filter.status === value}
+                      onClick={() => setFilter((f) => ({ ...f, status: f.status === value ? '' : value }))}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <button
+                    className="chip plain"
+                    aria-pressed={filter.onlyLegend}
+                    onClick={() => setFilter((f) => ({ ...f, onlyLegend: !f.onlyLegend }))}
+                  >
+                    ☾ Con leyenda
+                  </button>
+                </div>
+                <div className="row between">
+                  <span className="muted small">
+                    {mapPlaces.length} de {places.length} lugares
+                    {(filter.query.trim() || filter.province || filter.radius > 0) && ' · hay más filtros en Lugares'}
+                  </span>
+                  <span className="row nowrap">
+                    {filterCount(filter) > 0 && (
+                      <button className="link" onClick={() => setFilter(noFilter)}>
+                        Quitar
+                      </button>
+                    )}
+                    <button className="btn small" onClick={() => setFilterOpen(false)}>
+                      Hecho
+                    </button>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <button
           className={`fab car${car ? ' on' : ''}`}
           onClick={() => (car ? setCarMenu((open) => !open) : parkHere())}

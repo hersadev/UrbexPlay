@@ -1058,3 +1058,63 @@ progress {
 .stop-picker .result {
   padding: 8px 10px;
 }
+
+/* ── Filtro sobre el mapa y marcadores según el zoom ── */
+
+.map-filter {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: calc(100% - 74px);
+}
+.map-filter-toggle {
+  min-height: 36px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+}
+.map-filter-toggle.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.map-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(340px, calc(100vw - 24px));
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.4);
+}
+.chip.plain[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+/* Con el filtro arriba a la izquierda, los avisos del mapa bajan una línea. */
+.map-wrap > .banner:not(.guide) {
+  top: 56px;
+}
+
+/* Mapa alejado: los lugares son puntos de color; al acercar vuelven los iconos. */
+.map .pin {
+  transition: transform 0.15s;
+}
+.map[data-zoom='medio'] .pin:not(.mark):not(.start) {
+  transform: scale(0.55);
+  font-size: 0;
+}
+.map[data-zoom='lejos'] .pin:not(.mark):not(.start) {
+  transform: scale(0.4);
+  font-size: 0;
+}
+.map[data-zoom='medio'] .pin.mark:not(.keep),
+.map[data-zoom='lejos'] .pin.mark:not(.keep) {
+  display: none;
+}

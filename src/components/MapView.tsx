@@ -7,6 +7,8 @@ import { TYPE_META, type LatLng, type Place, type Position, type Status } from '
 export interface Mark extends LatLng {
   glyph: string;
   title: string;
+  /** Se enseña también con el mapa alejado (el coche). */
+  keep?: boolean;
 }
 
 /** Punto al que se guía en este momento. `key` cambia con el destino y con la etapa. */
@@ -138,6 +140,13 @@ export default function MapView({
       if (live.current.picking) live.current.onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
     });
     m.on('dragstart', () => live.current.onUserPan());
+    // Con el mapa alejado los marcadores se reducen a puntos para no taparlo (ver estilos).
+    const scale = () => {
+      const zoom = m.getZoom();
+      el.current!.dataset.zoom = zoom <= 8 ? 'lejos' : zoom <= 10 ? 'medio' : 'cerca';
+    };
+    m.on('zoomend', scale);
+    scale();
 
     const observer = new ResizeObserver(() => m.invalidateSize());
     observer.observe(el.current!);
@@ -215,7 +224,7 @@ export default function MapView({
     for (const mark of marks) {
       const icon = L.divIcon({
         className: '',
-        html: `<span class="pin mark">${mark.glyph}</span>`,
+        html: `<span class="pin mark${mark.keep ? ' keep' : ''}">${mark.glyph}</span>`,
         iconSize: [24, 24],
         iconAnchor: [12, 12],
       });

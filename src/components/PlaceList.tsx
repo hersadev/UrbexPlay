@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { isCatalogId } from '../catalog';
 import { distanceKm, formatKm } from '../geo';
+import { filterCount, noFilter, toggleType, type Filter } from '../filter';
 import { normalize } from '../text';
-import { TYPE_META, TYPES, type LatLng, type Place, type PlaceType, type Status } from '../types';
+import { TYPE_META, TYPES, type LatLng, type Place, type Status } from '../types';
 
 interface Props {
   places: Place[];
@@ -15,17 +16,15 @@ interface Props {
   onImport: () => void;
   /** Informa de los lugares que pasan el filtro, para pintar solo esos en el mapa. */
   onVisible: (places: Place[]) => void;
+  filter: Filter;
+  setFilter: (change: (f: Filter) => Filter) => void;
 }
 
 const RADII = [0, 25, 50, 100, 200];
 
-export default function PlaceList({ places, statuses, userPos, onLocate, onOpen, onAdd, onImport, onVisible }: Props) {
-  const [query, setQuery] = useState('');
-  const [types, setTypes] = useState<Set<PlaceType>>(new Set());
-  const [province, setProvince] = useState('');
-  const [status, setStatus] = useState<Status | ''>('');
-  const [radius, setRadius] = useState(0);
-  const [onlyLegend, setOnlyLegend] = useState(false);
+export default function PlaceList({ places, statuses, userPos, onLocate, onOpen, onAdd, onImport, onVisible, filter, setFilter }: Props) {
+  const { query, types, province, status, radius, onlyLegend } = filter;
+  const set = (change: Partial<Filter>) => setFilter((f) => ({ ...f, ...change }));
 
   const provinces = useMemo(
     () => [...new Set(places.map((p) => p.province))].sort((a, b) => a.localeCompare(b, 'es')),
@@ -51,14 +50,7 @@ export default function PlaceList({ places, statuses, userPos, onLocate, onOpen,
 
   useEffect(() => onVisible(shown.map((r) => r.place)), [shown, onVisible]);
 
-  const toggleType = (t: PlaceType) =>
-    setTypes((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(t)) next.add(t);
-      return next;
-    });
-
-  const filtering = !!(query || types.size || province || status || radius || onlyLegend);
+  const filtering = filterCount(filter) > 0;
 
   return (
     <div className="view">
@@ -79,7 +71,7 @@ export default function PlaceList({ places, statuses, userPos, onLocate, onOpen,
         type="search"
         placeholder="Buscar por nombre, pueblo o provincia"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => set({ query: e.target.value })}
         aria-label="Buscar lugares"
       />
 
@@ -90,7 +82,7 @@ export default function PlaceList({ places, statuses, userPos, onLocate, onOpen,
             className="chip"
             aria-pressed={types.has(t)}
             style={{ '--c': TYPE_META[t].color } as React.CSSProperties}
-            onClick={() => toggleType(t)}
+            onClick={() => setFilter((f) => toggleType(f, t))}
           >
             <span aria-hidden="true">{TYPE_META[t].glyph}</span> {TYPE_META[t].label}
           </button>
@@ -98,7 +90,7 @@ export default function PlaceList({ places, statuses, userPos, onLocate, onOpen,
       </div>
 
       <div className="filters">
-        <select className="input" value={province} onChange={(e) => setProvince(e.target.value)} aria-label="Provincia">
+        <select className="input" value={province} onChange={(e) => set({ province: e.target.value })} aria-label="Provincia">
           <option value="">Todas las provincias</option>
           {provinces.map((p) => (
             <option key={p}>{p}</option>
@@ -107,7 +99,7 @@ export default function PlaceList({ places, statuses, userPos, onLocate, onOpen,
         <select
           className="input"
           value={status}
-          onChange={(e) => setStatus(e.target.value as Status | '')}
+          onChange={(e) => set({ status: e.target.value as Status | '' })}
           aria-label="Estado en mi diario"
         >
           <option value="">Cualquier estado</option>
@@ -119,7 +111,7 @@ export default function PlaceList({ places, statuses, userPos, onLocate, onOpen,
           <select
             className="input"
             value={radius}
-            onChange={(e) => setRadius(Number(e.target.value))}
+            onChange={(e) => set({ radius: Number(e.target.value) })}
             aria-label="Distancia desde mi posición"
           >
             {RADII.map((r) => (
@@ -134,7 +126,7 @@ export default function PlaceList({ places, statuses, userPos, onLocate, onOpen,
           </button>
         )}
         <label className="check">
-          <input type="checkbox" checked={onlyLegend} onChange={(e) => setOnlyLegend(e.target.checked)} />
+          <input type="checkbox" checked={onlyLegend} onChange={(e) => set({ onlyLegend: e.target.checked })} />
           Con leyenda
         </label>
       </div>
@@ -145,14 +137,7 @@ export default function PlaceList({ places, statuses, userPos, onLocate, onOpen,
         {filtering && (
           <button
             className="link"
-            onClick={() => {
-              setQuery('');
-              setTypes(new Set());
-              setProvince('');
-              setStatus('');
-              setRadius(0);
-              setOnlyLegend(false);
-            }}
+            onClick={() => setFilter(noFilter)}
           >
             Quitar filtros
           </button>
