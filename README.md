@@ -12,6 +12,7 @@ npm install
 npm run dev      # desarrollo, en http://localhost:5173
 npm run build    # compila a dist/
 npm run preview  # sirve dist/ (aquí funciona el modo sin conexión)
+npm test         # pruebas (Vitest); también se ejecutan antes de publicar
 ```
 
 Cada subida a `main` la publica en GitHub Pages
@@ -116,6 +117,8 @@ cambios posteriores del catálogo en el código no modifican esas fichas. Marcar
 `borrado` en un lugar del catálogo lo devuelve a su versión original; para que
 deje de verse hay que ocultarlo desde la app.
 
-En cada registro gana el último cambio. Quien conozca la URL y la clave puede
+En cada registro gana el último cambio. El diario es la excepción: si editas el
+de un mismo lugar en dos dispositivos sin sincronizar entre medias, las dos
+versiones se mezclan visita a visita y se conservan las notas de ambos. Quien conozca la URL y la clave puede
 leer y escribir los datos: no las publiques. Si cambias el script, hay que
 crear una versión nueva de la implementación para que surta efecto.

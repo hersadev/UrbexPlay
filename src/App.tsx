@@ -18,7 +18,15 @@ import { bearing, cardinal, distanceKm, drivePoint, formatKm, nearestOnLine } fr
 import { localDate, trackKm } from './track';
 import { deletePhoto, deleteTrack } from './store';
 import { formatDuration, tripPoints, useRoadRoute } from './road';
-import { loadSyncConfig, mergeRemote, pushPull, saveSyncConfig, type SyncConfig, type SyncStatus } from './sync';
+import {
+  exchange,
+  loadSyncBase,
+  loadSyncConfig,
+  saveSyncBase,
+  saveSyncConfig,
+  type SyncConfig,
+  type SyncStatus,
+} from './sync';
 import { paths, useNav, type Tab } from './nav';
 import {
   emptyDiary,
@@ -152,10 +160,12 @@ export default function App() {
     dirty.current = false;
     setSyncStatus((st) => ({ ...st, state: 'syncing' }));
     try {
-      const remote = await pushPull(config, live.current.data);
-      const { skipped } = mergeRemote(live.current.data, remote);
+      const base = await loadSyncBase().catch(() => ({}));
+      const { apply, base: nextBase } = await exchange(config, live.current.data, base);
+      const { skipped } = apply(live.current.data);
       // Se mezcla sobre el estado del momento: lo editado durante la petición no se pierde.
-      setData((prev) => mergeRemote(prev, remote).data);
+      setData((prev) => apply(prev).data);
+      saveSyncBase(nextBase).catch(() => {});
       setSyncStatus({ state: 'ok', at: Date.now(), skipped });
     } catch (e) {
       dirty.current = true;
@@ -196,6 +206,8 @@ export default function App() {
   const changeSyncConfig = (config: SyncConfig | null) => {
     setSyncConfig(config);
     setSyncStatus({ state: 'off' });
+    // Otra hoja (o ninguna): lo recordado de la anterior ya no vale.
+    saveSyncBase({}).catch(() => {});
     saveSyncConfig(config).catch(() => setNotice('No se ha podido guardar la configuración.'));
   };
 

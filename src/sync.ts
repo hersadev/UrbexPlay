@@ -12,6 +12,7 @@ import {
   type Status,
   type Trip,
   type TripStart,
+  type Visit,
 } from './types';
 
 /*
@@ -19,6 +20,12 @@ import {
  * google-apps-script/Code.gs. En cada petición la app envía todos sus
  * registros con su marca de tiempo y recibe el contenido completo de la hoja;
  * en ambos lados gana, registro a registro, la marca más reciente.
+ *
+ * El diario es la excepción: si un mismo lugar se ha tocado en dos
+ * dispositivos desde la última sincronización, sus dos versiones se mezclan
+ * visita a visita (ver `mergeDiary`) en lugar de quedarse con una. Para saber
+ * qué ha cambiado cada lado se guarda cómo estaba la hoja la última vez
+ * (`SyncBase`).
  */
 
 export interface SyncConfig {
@@ -39,6 +46,13 @@ type Sheet = 'Lugares' | 'Diario' | 'Salidas' | 'Ocultos';
 type Tables = Record<Sheet, Row[]>;
 
 const CONFIG_KEY = 'urbexplay:sync';
+const BASE_KEY = 'urbexplay:sync-base';
+
+/** Diario de cada lugar tal como quedó en la hoja en la última sincronización (`null`: borrado). */
+export type SyncBase = Record<string, { stamp: number; diary: Diary | null }>;
+
+export const loadSyncBase = async (): Promise<SyncBase> => (await get<SyncBase>(BASE_KEY)) ?? {};
+export const saveSyncBase = (base: SyncBase) => set(BASE_KEY, base);
 
 export const loadSyncConfig = () => get<SyncConfig>(CONFIG_KEY);
 export const saveSyncConfig = (config: SyncConfig | null) => set(CONFIG_KEY, config ?? undefined);
@@ -216,8 +230,88 @@ function rowToTrip(row: Row, previous: Trip | undefined): Trip {
   };
 }
 
-/** Aplica lo recibido de la hoja donde su marca es más reciente que la local. */
-export function mergeRemote(data: Data, remote: Partial<Tables>): { data: Data; skipped: number } {
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Lista de ids tras los cambios de los dos lados: lo que uno quitó, quitado; lo que uno añadió, añadido. */
+function mergeIds(base: string[], mine: string[], theirs: string[]): string[] {
+  const inBase = new Set(base);
+  const inMine = new Set(mine);
+  const inTheirs = new Set(theirs);
+  return [...mine, ...theirs.filter((id) => !inMine.has(id))].filter(
+    (id) => !inBase.has(id) || (inMine.has(id) && inTheirs.has(id)),
+  );
+}
+
+/**
+ * Mezcla dos versiones de un diario que han cambiado por separado desde `base`
+ * (la última que compartieron). En cada dato manda quien lo cambió; si lo
+ * cambiaron los dos, manda `prefer` (la versión más reciente), salvo en las
+ * notas, que se conservan las dos, y en las fotos, que se suman.
+ */
+export function mergeDiary(
+  base: Diary | null | undefined,
+  mine: Diary,
+  theirs: Diary,
+  prefer: 'mine' | 'theirs',
+): Diary {
+  const from: Diary = base ?? { status: 'ninguno', notes: '', visits: [] };
+  const [first, second] = prefer === 'mine' ? [mine, theirs] : [theirs, mine];
+  const pick = <T>(b: T, m: T, t: T): T => (same(m, b) ? t : same(t, b) ? m : prefer === 'mine' ? m : t);
+
+  let notes = pick(from.notes, mine.notes, theirs.notes);
+  if (mine.notes !== from.notes && theirs.notes !== from.notes && mine.notes !== theirs.notes) {
+    // Las dos se han reescrito: se guardan ambas antes que perder una.
+    notes = first.notes.includes(second.notes.trim())
+      ? first.notes
+      : second.notes.includes(first.notes.trim())
+        ? second.notes
+        : `${first.notes.trimEnd()}\n\n${second.notes.trimStart()}`;
+  }
+
+  const baseVisits = new Map(from.visits.map((v) => [v.id, v]));
+  const myVisits = new Map(mine.visits.map((v) => [v.id, v]));
+  const theirVisits = new Map(theirs.visits.map((v) => [v.id, v]));
+  const visits: Visit[] = [];
+  for (const id of mergeIds([...baseVisits.keys()], [...myVisits.keys()], [...theirVisits.keys()])) {
+    const b = baseVisits.get(id);
+    const m = myVisits.get(id);
+    const t = theirVisits.get(id);
+    if (!m || !t) {
+      visits.push((m ?? t)!);
+    } else if (same(m, t) || same(t, b)) {
+      visits.push(m);
+    } else if (same(m, b)) {
+      visits.push(t);
+    } else {
+      const [p, o] = prefer === 'mine' ? [m, t] : [t, m];
+      const track = p.track ?? o.track;
+      visits.push({
+        id,
+        date: pick(b?.date ?? '', m.date, t.date),
+        notes: pick(b?.notes ?? '', m.notes, t.notes),
+        photos: mergeIds(b?.photos ?? [], p.photos, o.photos),
+        ...(track && { track }),
+      });
+    }
+  }
+  // Las más recientes primero, como al registrarlas.
+  visits.sort((a, b) => b.date.localeCompare(a.date));
+
+  return { status: pick(from.status, mine.status, theirs.status), notes, visits };
+}
+
+/**
+ * Aplica lo recibido de la hoja donde su marca es más reciente que la local.
+ * Con `base`, un diario cambiado en los dos lados desde la última
+ * sincronización se mezcla y recibe la marca `now`, para que la mezcla viaje a
+ * la hoja y de ahí al otro dispositivo.
+ */
+export function mergeRemote(
+  data: Data,
+  remote: Partial<Tables>,
+  base: SyncBase = {},
+  now = Date.now(),
+): { data: Data; skipped: number } {
   const custom = new Map(data.custom.map((p) => [p.id, p]));
   const hidden = new Set(data.hidden);
   const diary = { ...data.diary };
@@ -254,11 +348,29 @@ export function mergeRemote(data: Data, remote: Partial<Tables>): { data: Data; 
     else hidden.add(id);
     return true;
   });
-  each('Diario', 'd', (id, row, deleted) => {
-    if (deleted) delete diary[id];
-    else diary[id] = rowToDiary(row);
-    return true;
-  });
+  for (const row of remote.Diario ?? []) {
+    const id = (row.id ?? '').trim();
+    if (!id) continue;
+    const key = `d:${id}`;
+    const stamp = Number(row.actualizado) || 0;
+    const local = key in stamps ? stamps[key] : null;
+    if (local === stamp) continue;
+    const deleted = isTrue(row.borrado);
+    // Sin recuerdo de este diario (nunca ha coincidido con la hoja) se parte de uno vacío.
+    const known = base[id] ?? { stamp: 0, diary: null };
+    // Los dos lados han tocado este diario desde la última vez que coincidieron.
+    const both = local !== null && local > known.stamp && stamp > known.stamp;
+    if (both && !deleted && diary[id]) {
+      diary[id] = mergeDiary(known.diary, diary[id], rowToDiary(row), local > stamp ? 'mine' : 'theirs');
+      stamps[key] = Math.max(now, local + 1, stamp + 1);
+      changed = true;
+    } else if (local === null || stamp > local) {
+      if (deleted) delete diary[id];
+      else diary[id] = rowToDiary(row);
+      stamps[key] = stamp;
+      changed = true;
+    }
+  }
   each('Salidas', 't', (id, row, deleted) => {
     if (deleted) trips.delete(id);
     else trips.set(id, rowToTrip(row, trips.get(id)));
@@ -272,15 +384,33 @@ export function mergeRemote(data: Data, remote: Partial<Tables>): { data: Data; 
   };
 }
 
-/** Envía los registros locales y devuelve el contenido de la hoja ya mezclado. */
-export async function pushPull(config: SyncConfig, data: Data): Promise<Partial<Tables>> {
+/** Estado del diario en la hoja, para compararlo en la siguiente sincronización. */
+export function baseFrom(remote: Partial<Tables>): SyncBase {
+  const base: SyncBase = {};
+  for (const row of remote.Diario ?? []) {
+    const id = (row.id ?? '').trim();
+    if (id) base[id] = { stamp: Number(row.actualizado) || 0, diary: isTrue(row.borrado) ? null : rowToDiary(row) };
+  }
+  return base;
+}
+
+/** Hay diarios cambiados aquí que la hoja aún no conoce: conviene leerla antes de escribir. */
+export function hasUnsyncedDiary(data: Data, base: SyncBase): boolean {
+  return Object.entries(data.stamps).some(([key, stamp]) => key.startsWith('d:') && stamp > (base[key.slice(2)]?.stamp ?? 0));
+}
+
+/**
+ * Envía los registros locales y devuelve el contenido de la hoja ya mezclado.
+ * Con `data` en `null` solo lee la hoja, sin escribir nada en ella.
+ */
+export async function pushPull(config: SyncConfig, data: Data | null): Promise<Partial<Tables>> {
   let response: Response;
   try {
     // Cuerpo de texto sin cabeceras propias: así el navegador no hace la
     // consulta previa (CORS preflight), que Apps Script no sabe responder.
     response = await fetch(config.url.trim(), {
       method: 'POST',
-      body: JSON.stringify({ clave: config.key, cambios: toTables(data) }),
+      body: JSON.stringify({ clave: config.key, cambios: data ? toTables(data) : {} }),
     });
   } catch {
     throw new Error('No se ha podido conectar con la hoja. Comprueba la conexión y la URL.');
@@ -295,4 +425,26 @@ export async function pushPull(config: SyncConfig, data: Data): Promise<Partial<
   }
   if (!body.ok || !body.datos) throw new Error(body.error || 'La hoja ha rechazado la sincronización.');
   return body.datos;
+}
+
+/**
+ * Una sincronización completa. Devuelve `apply`, que mezcla lo recibido sobre
+ * cualquier estado (el de ahora o uno editado mientras duraba la petición), y
+ * el estado de la hoja que hay que recordar para la próxima vez.
+ */
+export async function exchange(
+  config: SyncConfig,
+  data: Data,
+  base: SyncBase,
+  now = Date.now(),
+): Promise<{ apply: (current: Data) => { data: Data; skipped: number }; base: SyncBase }> {
+  // Con diarios cambiados aquí, primero se lee la hoja: si otro dispositivo también los ha
+  // tocado, se mezclan antes de escribir, en vez de pisar su versión.
+  const before = hasUnsyncedDiary(data, base) ? await pushPull(config, null) : null;
+  const mine = before ? mergeRemote(data, before, base, now).data : data;
+  const remote = await pushPull(config, mine);
+  return {
+    apply: (current) => mergeRemote(before ? mergeRemote(current, before, base, now).data : current, remote, base, now),
+    base: baseFrom(remote),
+  };
 }

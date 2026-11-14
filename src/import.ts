@@ -72,15 +72,18 @@ export function parseLocation(text: string): Located | null {
   }
 
   // Decimales con coma: 37,86833, -1,51216
-  const comma = input.match(/(-?\d{1,2},\d{3,})\s*[;,]?\s+(-?\d{1,3},\d{3,})/);
+  const comma = input.match(/(?<![\d.,])(-?\d{1,2},\d{3,})\s*[;,]?\s+(-?\d{1,3},\d{3,})/);
   if (comma) {
     const lat = Number(comma[1].replace(',', '.'));
     const lng = Number(comma[2].replace(',', '.'));
     if (valid(lat, lng)) return { point: { lat, lng } };
   }
 
-  // Decimales con punto: 37.86833, -1.51216
-  const dot = input.match(/(-?\d{1,2}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)(?![\d.])/);
+  // Decimales con punto: 37.86833, -1.51216 (o separados solo por un espacio si los dos llevan decimales).
+  // No puede haber una cifra justo delante: «137.5» no es la latitud 37.5.
+  const dot =
+    input.match(/(?<![\d.])(-?\d{1,2}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)(?![\d.])/) ??
+    input.match(/(?<![\d.])(-?\d{1,2}\.\d+)\s+(-?\d{1,3}\.\d+)(?![\d.])/);
   if (dot && valid(Number(dot[1]), Number(dot[2]))) return { point: { lat: Number(dot[1]), lng: Number(dot[2]) } };
 
   return null;
