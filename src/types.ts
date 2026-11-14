@@ -61,12 +61,25 @@ export interface Diary {
   visits: Visit[];
 }
 
+/** Punto desde el que se sale (y al que se vuelve) en una salida. */
+export interface TripStart extends LatLng {
+  label: string;
+}
+
 export interface Trip {
   id: string;
   name: string;
   date: string;
   notes: string;
   placeIds: string[];
+  start?: TripStart;
+  /** Claves de los objetos de la lista de equipo ya preparados. */
+  packed?: string[];
+}
+
+export interface LatLng {
+  lat: number;
+  lng: number;
 }
 
 export interface Data {
@@ -82,11 +95,6 @@ export interface Data {
    * Un registro borrado conserva su marca.
    */
   stamps: Record<string, number>;
-}
-
-export interface LatLng {
-  lat: number;
-  lng: number;
 }
 
 export interface Position extends LatLng {

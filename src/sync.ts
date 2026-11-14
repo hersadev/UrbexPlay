@@ -1,7 +1,17 @@
 import { get, set } from 'idb-keyval';
 import { CATALOG } from './catalog';
 import { sourcesToText, textToSources } from './sources';
-import { TYPES, type Data, type Diary, type Ownership, type Place, type PlaceType, type Status, type Trip } from './types';
+import {
+  TYPES,
+  type Data,
+  type Diary,
+  type Ownership,
+  type Place,
+  type PlaceType,
+  type Status,
+  type Trip,
+  type TripStart,
+} from './types';
 
 /*
  * Sincronización con una hoja de Google a través del script de
@@ -83,7 +93,14 @@ function toTables(data: Data): Tables {
     }
     if (kind === 't' && trips.has(id)) {
       const t = trips.get(id)!;
-      fields = { nombre: t.name, fecha: t.date, notas: t.notes, paradas: t.placeIds.join(', ') };
+      fields = {
+        nombre: t.name,
+        fecha: t.date,
+        notas: t.notes,
+        paradas: t.placeIds.join(', '),
+        origen: t.start ? `${t.start.lat.toFixed(5)}, ${t.start.lng.toFixed(5)} ${t.start.label}`.trim() : '',
+        equipo: (t.packed ?? []).join(', '),
+      };
     }
     tables[sheet].push({ id, ...(fields ?? {}), actualizado: String(stamp), borrado: fields ? '' : 'TRUE' });
   }
@@ -143,13 +160,39 @@ function rowToDiary(row: Row): Diary {
   };
 }
 
-const rowToTrip = (row: Row): Trip => ({
-  id: row.id.trim(),
-  name: row.nombre ?? '',
-  date: /^\d{4}-\d{2}-\d{2}$/.test((row.fecha ?? '').trim()) ? row.fecha.trim() : '',
-  notes: row.notas ?? '',
-  placeIds: (row.paradas ?? '').split(/[,\s]+/).filter(Boolean),
-});
+/** «37.99200, -1.13000 Murcia» → punto de salida. */
+function textToStart(text: string): TripStart | undefined {
+  const match = /^\s*(-?\d+(?:[.]\d+)?)\s*,\s*(-?\d+(?:[.]\d+)?)\s*(.*)$/.exec(text);
+  if (!match) return undefined;
+  const lat = Number(match[1]);
+  const lng = Number(match[2]);
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return undefined;
+  return { lat, lng, label: match[3].trim() };
+}
+
+/**
+ * Una hoja con el script antiguo no tiene las columnas «origen» ni «equipo»:
+ * en ese caso se conserva lo que hubiera en este dispositivo (`previous`).
+ */
+function rowToTrip(row: Row, previous: Trip | undefined): Trip {
+  const start = row.origen === undefined ? previous?.start : textToStart(row.origen);
+  const packed =
+    row.equipo === undefined
+      ? previous?.packed
+      : row.equipo
+          .split(',')
+          .map((key) => key.trim())
+          .filter(Boolean);
+  return {
+    id: row.id.trim(),
+    name: row.nombre ?? '',
+    date: /^\d{4}-\d{2}-\d{2}$/.test((row.fecha ?? '').trim()) ? row.fecha.trim() : '',
+    notes: row.notas ?? '',
+    placeIds: (row.paradas ?? '').split(/[,\s]+/).filter(Boolean),
+    ...(start && { start }),
+    ...(packed?.length && { packed }),
+  };
+}
 
 /** Aplica lo recibido de la hoja donde su marca es más reciente que la local. */
 export function mergeRemote(data: Data, remote: Partial<Tables>): { data: Data; skipped: number } {
@@ -196,7 +239,7 @@ export function mergeRemote(data: Data, remote: Partial<Tables>): { data: Data; 
   });
   each('Salidas', 't', (id, row, deleted) => {
     if (deleted) trips.delete(id);
-    else trips.set(id, rowToTrip(row));
+    else trips.set(id, rowToTrip(row, trips.get(id)));
     return true;
   });
 

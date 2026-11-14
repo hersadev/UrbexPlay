@@ -39,10 +39,11 @@ const pair = (p: LatLng) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
 
 export const formatCoords = (p: LatLng) => `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
 
-/** Ruta en Google Maps desde la posición actual pasando por los puntos en orden. */
-export function googleMapsRoute(points: LatLng[]): string {
+/** Ruta en Google Maps pasando por los puntos en orden, desde `origin` o, si no hay, desde la posición actual. */
+export function googleMapsRoute(points: LatLng[], origin?: LatLng): string {
   if (points.length === 0) return 'https://www.google.com/maps';
   const params = new URLSearchParams({ api: '1', travelmode: 'driving' });
+  if (origin) params.set('origin', pair(origin));
   params.set('destination', pair(points[points.length - 1]));
   // Google admite como máximo 9 paradas intermedias en este tipo de enlace.
   const stops = points.slice(0, -1).slice(0, 9);

@@ -13,6 +13,10 @@ interface Props {
   places: Place[];
   diary: Record<string, Diary>;
   route: Place[] | null;
+  /** Punto de salida de la ruta, al que también se vuelve. */
+  routeStart?: LatLng | null;
+  /** Trazado por carretera de la ruta; sin él se unen las paradas en línea recta. */
+  routeLine?: [number, number][] | null;
   userPos: Position | null;
   /** El mapa se mantiene centrado en la posición del usuario. */
   follow: boolean;
@@ -54,6 +58,8 @@ export default function MapView({
   places,
   diary,
   route,
+  routeStart,
+  routeLine,
   userPos,
   follow,
   target,
@@ -67,6 +73,8 @@ export default function MapView({
   const map = useRef<L.Map>();
   const markers = useRef(L.layerGroup());
   const routeLayer = useRef(L.layerGroup());
+  /** Recorrido ya encuadrado, para no mover el mapa cuando solo llega el trazado. */
+  const fitted = useRef('');
   const userLayer = useRef(L.layerGroup());
   // El mapa se crea una sola vez; los manejadores leen siempre la versión actual.
   const live = useRef({ picking, onPick, onOpen, onUserPan });
@@ -146,17 +154,34 @@ export default function MapView({
 
   useEffect(() => {
     routeLayer.current.clearLayers();
-    if (route && route.length > 1) {
-      const line = L.polyline(
-        route.map((p) => [p.lat, p.lng] as L.LatLngTuple),
-        { color: '#e0a341', weight: 4, dashArray: '8 8' },
-      ).addTo(routeLayer.current);
-      // Sin animación: varias paradas añadidas seguidas cancelaban el encuadre a medias.
-      map.current?.fitBounds(line.getBounds(), { padding: [50, 50], animate: false });
-    } else if (route && route.length === 1) {
-      map.current?.setView([route[0].lat, route[0].lng], 12, { animate: false });
+    if (!route || !route.length) {
+      fitted.current = '';
+      return;
     }
-  }, [route]);
+    const stops = route.map((p) => [p.lat, p.lng] as L.LatLngTuple);
+    const origin = routeStart ? ([routeStart.lat, routeStart.lng] as L.LatLngTuple) : null;
+    const through = origin ? [origin, ...stops, origin] : stops;
+    if (origin) {
+      const icon = L.divIcon({
+        className: '',
+        html: '<span class="pin start">⚑</span>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      });
+      L.marker(origin, { icon, title: 'Punto de salida', interactive: false }).addTo(routeLayer.current);
+    }
+    if (routeLine?.length) {
+      L.polyline(routeLine, { color: '#e0a341', weight: 4, opacity: 0.9 }).addTo(routeLayer.current);
+    } else if (through.length > 1) {
+      L.polyline(through, { color: '#e0a341', weight: 4, dashArray: '8 8' }).addTo(routeLayer.current);
+    }
+    const key = through.map((p) => p.join(',')).join(';');
+    if (key === fitted.current) return;
+    fitted.current = key;
+    // Sin animación: varias paradas añadidas seguidas cancelaban el encuadre a medias.
+    if (through.length > 1) map.current?.fitBounds(L.latLngBounds(through), { padding: [50, 50], animate: false });
+    else map.current?.setView(stops[0], 12, { animate: false });
+  }, [route, routeStart, routeLine]);
 
   // Posición del usuario, precisión y línea hacia el destino.
   useEffect(() => {

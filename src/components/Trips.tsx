@@ -1,9 +1,13 @@
 import { useMemo } from 'react';
+import { gearList } from '../gear';
 import { distanceKm, formatKm, googleMapsRoute, nearestOrder, pathKm } from '../geo';
 import { loadSavedMaps, saveSavedMaps } from '../offline';
+import { formatDuration, tripPoints, useRoadRoute } from '../road';
 import { uid } from '../store';
+import { formatTime, sunTimes } from '../sun';
 import TripMap from './TripMap';
-import { OWNERSHIP_LABEL, TYPE_META, type Data, type Place, type Trip } from '../types';
+import TripStart from './TripStart';
+import { OWNERSHIP_LABEL, TYPE_META, type Data, type LatLng, type Place, type Trip } from '../types';
 
 interface Props {
   data: Data;
@@ -23,13 +27,25 @@ const formatDate = (iso: string) =>
 export default function Trips({ data, update, places, openId, setOpenId, onOpenPlace, onShowOnMap }: Props) {
   const byId = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
   const trip = data.trips.find((t) => t.id === openId);
+  const stops = useMemo(
+    () => (trip ? trip.placeIds.map((id) => byId.get(id)).filter((p): p is Place => !!p) : []),
+    [trip, byId],
+  );
+  const points = useMemo(() => tripPoints(trip?.start, stops), [trip?.start, stops]);
+  const road = useRoadRoute(points);
+  const gear = useMemo(() => gearList(stops), [stops]);
 
   const patch = (id: string, change: Partial<Trip>) =>
     update((d) => ({ ...d, trips: d.trips.map((t) => (t.id === id ? { ...t, ...change } : t)) }));
 
   const create = () => {
     const id = uid();
-    update((d) => ({ ...d, trips: [...d.trips, { id, name: '', date: '', notes: '', placeIds: [] }] }));
+    // Lo habitual es salir siempre del mismo sitio: la nueva hereda el último origen usado.
+    const start = [...data.trips].reverse().find((t) => t.start)?.start;
+    update((d) => ({
+      ...d,
+      trips: [...d.trips, { id, name: '', date: '', notes: '', placeIds: [], ...(start && { start }) }],
+    }));
     setOpenId(id);
   };
 
@@ -71,9 +87,31 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
     );
   }
 
-  const stops = trip.placeIds.map((id) => byId.get(id)).filter((p): p is Place => !!p);
   const available = places.filter((p) => !trip.placeIds.includes(p.id));
-  const total = pathKm(stops);
+  const start = trip.start;
+  const legs = road.status === 'ok' ? road.route.legs : null;
+  /** Tramo que llega a la parada `i`; con origen, el primero sale de él. */
+  const legTo = (i: number) => legs?.[start ? i : i - 1];
+  const before = (i: number): LatLng | undefined => (i > 0 ? stops[i - 1] : start);
+  const back = start ? legs?.[stops.length] : undefined;
+  const roadKm = legs?.reduce((sum, leg) => sum + leg.km, 0) ?? 0;
+  const roadMinutes = legs?.reduce((sum, leg) => sum + leg.minutes, 0) ?? 0;
+
+  const startOptions = data.trips
+    .map((t) => t.start)
+    .filter((s, i, all): s is NonNullable<typeof s> => {
+      if (!s || (start && s.lat === start.lat && s.lng === start.lng)) return false;
+      return all.findIndex((o) => o && o.lat === s.lat && o.lng === s.lng) === i;
+    })
+    .slice(-3);
+
+  const packed = new Set(trip.packed ?? []);
+  const packedCount = gear.filter((item) => packed.has(item.key)).length;
+  const togglePacked = (key: string) => {
+    // Se guardan solo los objetos de la lista actual: los de paradas quitadas se olvidan.
+    const next = gear.map((item) => item.key).filter((k) => (k === key ? !packed.has(k) : packed.has(k)));
+    patch(trip.id, { packed: next });
+  };
   const privateStops = stops.filter((p) => p.practical.ownership === 'privada');
   const hardStops = stops.filter((p) => p.practical.difficulty === 3);
 
@@ -112,13 +150,25 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
         <input className="input" type="date" value={trip.date} onChange={(e) => patch(trip.id, { date: e.target.value })} />
       </label>
 
+      <TripStart start={start} suggestions={startOptions} onChange={(next) => patch(trip.id, { start: next })} />
+
       <div className="row between">
         <h2>Paradas ({stops.length})</h2>
         {stops.length > 2 && (
           <button
             className="btn small"
-            onClick={() => patch(trip.id, { placeIds: nearestOrder(stops).map((p) => p.id) })}
-            title="Mantiene la primera parada y encadena siempre la más cercana"
+            onClick={() =>
+              patch(trip.id, {
+                placeIds: (start ? nearestOrder<LatLng>([start, ...stops]).slice(1) : nearestOrder(stops)).map(
+                  (p) => (p as Place).id,
+                ),
+              })
+            }
+            title={
+              start
+                ? 'Desde el punto de salida, encadena siempre la parada más cercana'
+                : 'Mantiene la primera parada y encadena siempre la más cercana'
+            }
           >
             Ordenar por cercanía
           </button>
@@ -126,43 +176,66 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
       </div>
 
       <ol className="stops">
-        {stops.map((p, i) => (
-          <li key={p.id} className="stop">
-            <span className="stop-n" style={{ '--c': TYPE_META[p.type].color } as React.CSSProperties}>
-              {i + 1}
-            </span>
-            <span className="card-body">
-              <button className="link stop-name" onClick={() => onOpenPlace(p.id)}>
-                {p.name}
-              </button>
-              <span className="muted">
-                {p.town}
-                {i > 0 && ` · ${formatKm(distanceKm(stops[i - 1], p))} desde la anterior`}
+        {stops.map((p, i) => {
+          const from = before(i);
+          const leg = legTo(i);
+          const sun = sunTimes(trip.date, p);
+          return (
+            <li key={p.id} className="stop">
+              <span className="stop-n" style={{ '--c': TYPE_META[p.type].color } as React.CSSProperties}>
+                {i + 1}
               </span>
-            </span>
-            <span className="stop-actions">
-              <button className="icon-btn" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Subir parada">
-                ↑
-              </button>
-              <button
-                className="icon-btn"
-                onClick={() => move(i, 1)}
-                disabled={i === stops.length - 1}
-                aria-label="Bajar parada"
-              >
-                ↓
-              </button>
-              <button
-                className="icon-btn"
-                onClick={() => patch(trip.id, { placeIds: trip.placeIds.filter((id) => id !== p.id) })}
-                aria-label="Quitar parada"
-              >
-                ×
-              </button>
-            </span>
-          </li>
-        ))}
+              <span className="card-body">
+                <button className="link stop-name" onClick={() => onOpenPlace(p.id)}>
+                  {p.name}
+                </button>
+                <span className="muted">
+                  {p.town}
+                  {from &&
+                    ` · ${
+                      leg
+                        ? `${formatKm(leg.km)} · ${formatDuration(leg.minutes)}`
+                        : `${formatKm(distanceKm(from, p))} en línea recta`
+                    } desde ${i > 0 ? 'la anterior' : 'el punto de salida'}`}
+                </span>
+                {sun && (
+                  <span className="muted stop-sun">
+                    ☀ {formatTime(sun.sunrise)}–{formatTime(sun.sunset)} · dorada hasta {formatTime(sun.goldenMorningEnd)}{' '}
+                    y desde {formatTime(sun.goldenEveningStart)}
+                  </span>
+                )}
+              </span>
+              <span className="stop-actions">
+                <button className="icon-btn" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Subir parada">
+                  ↑
+                </button>
+                <button
+                  className="icon-btn"
+                  onClick={() => move(i, 1)}
+                  disabled={i === stops.length - 1}
+                  aria-label="Bajar parada"
+                >
+                  ↓
+                </button>
+                <button
+                  className="icon-btn"
+                  onClick={() => patch(trip.id, { placeIds: trip.placeIds.filter((id) => id !== p.id) })}
+                  aria-label="Quitar parada"
+                >
+                  ×
+                </button>
+              </span>
+            </li>
+          );
+        })}
       </ol>
+      {stops.length > 0 && (
+        <p className="muted small">
+          {trip.date
+            ? '☀ Amanecer y atardecer de ese día en cada parada, con horizonte llano. Hora dorada: el sol a menos de 6° de altura.'
+            : 'Pon fecha a la salida para ver el amanecer, el atardecer y la hora dorada de cada parada.'}
+        </p>
+      )}
 
       <select
         className="input"
@@ -180,14 +253,31 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
 
       {stops.length > 0 && (
         <>
-          {stops.length > 1 && (
-            <p className="summary-line">
-              <strong>{formatKm(total)}</strong> entre paradas en línea recta. Por carretera será más: abre la ruta para
-              ver distancia y tiempo reales.
+          {points.length > 1 && (
+            <p className="summary-line" role="status">
+              {legs ? (
+                <>
+                  <strong>
+                    {formatKm(roadKm)} · {formatDuration(roadMinutes)}
+                  </strong>{' '}
+                  al volante
+                  {start
+                    ? `, ida y vuelta desde ${start.label || 'el punto de salida'}.`
+                    : ' entre paradas. Indica el punto de salida para contar también la ida y la vuelta.'}
+                  {back && ` La vuelta desde la última parada: ${formatKm(back.km)} · ${formatDuration(back.minutes)}.`}
+                </>
+              ) : road.status === 'error' ? (
+                <>
+                  <strong>{formatKm(pathKm(points))}</strong> en línea recta. No se ha podido calcular la ruta por
+                  carretera: hace falta conexión.
+                </>
+              ) : (
+                'Calculando la ruta por carretera…'
+              )}
             </p>
           )}
           <div className="row">
-            <a className="btn primary" href={googleMapsRoute(stops)} target="_blank" rel="noreferrer">
+            <a className="btn primary" href={googleMapsRoute(stops, start)} target="_blank" rel="noreferrer">
               Abrir ruta en Google Maps ↗
             </a>
             <button className="btn mobile-only" onClick={onShowOnMap}>
@@ -216,6 +306,32 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
             ))}
           </ul>
         </div>
+      )}
+
+      {stops.length > 0 && (
+        <section>
+          <h2>Equipo{gear.length > 0 && ` (${packedCount} de ${gear.length})`}</h2>
+          {gear.length > 0 ? (
+            <ul className="gear">
+              {gear.map((item) => (
+                <li key={item.key}>
+                  <label className="check gear-item">
+                    <input type="checkbox" checked={packed.has(item.key)} onChange={() => togglePacked(item.key)} />
+                    <span className="card-body">
+                      <span className="gear-label">{item.label}</span>
+                      <span className="muted small">{item.wanted.join(' · ')}</span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">
+              Ninguna parada indica equipo. Rellena «Equipo recomendado» en la ficha de cada lugar y la lista se
+              generará sola.
+            </p>
+          )}
+        </section>
       )}
 
       <TripMap tripId={trip.id} stops={stops} />

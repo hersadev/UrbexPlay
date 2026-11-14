@@ -503,6 +503,11 @@ textarea.input {
   font: 15px/1 var(--sans);
   box-shadow: 0 1px 5px rgb(0 0 0 / 0.5);
 }
+.pin.start {
+  background: #2a241b;
+  border-color: #e0a341;
+  color: #e0a341;
+}
 .pin.static {
   flex: none;
   box-shadow: none;
@@ -733,6 +738,29 @@ textarea.input {
 .icon-btn:disabled {
   opacity: 0.3;
   cursor: default;
+}
+.stop-sun {
+  font-variant-numeric: tabular-nums;
+}
+.gear {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.gear-item {
+  align-items: flex-start;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.gear-item input {
+  flex: none;
+  margin-top: 2px;
+}
+.gear-item input:checked + .card-body .gear-label {
+  color: var(--muted);
+  text-decoration: line-through;
 }
 .summary-line {
   padding: 10px 12px;

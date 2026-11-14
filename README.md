@@ -27,6 +27,20 @@ usar sin cobertura, con GPS.
   el topográfico y el satélite del IGN alrededor de las paradas. El callejero de
   OpenStreetMap no se descarga porque su política de uso no lo permite.
 
+## Salidas
+
+- **Ruta por carretera**: cada salida muestra los kilómetros y el tiempo al
+  volante entre paradas y el total, y dibuja el trazado en el mapa. Lo calcula
+  el servidor OSRM de FOSSGIS (`routing.openstreetmap.de`), gratuito y sin
+  clave, al que se envían las coordenadas del recorrido. Las últimas rutas
+  quedan guardadas; sin conexión y sin ruta guardada se enseña la línea recta.
+- **Punto de salida**: se busca por nombre, se toma del GPS o se repite el de
+  otra salida. Con él, el total cuenta la ida y la vuelta.
+- **Luz**: con fecha, cada parada indica amanecer, atardecer y hora dorada (sol
+  a menos de 6°). Se calcula en el dispositivo, con horizonte llano.
+- **Equipo**: lista marcable que sale del campo «Equipo recomendado» de las
+  paradas, sin repetir lo que piden varias.
+
 ## Añadir lugares
 
 - **Buscar**: al crear un lugar, el buscador consulta Wikipedia y OpenStreetMap
@@ -72,7 +86,11 @@ en cada dispositivo.
 4. Pega la URL de la aplicación web en Ajustes y pulsa «Conectar». En los demás
    dispositivos basta con este paso.
 
-El script crea las pestañas `Lugares`, `Diario`, `Salidas` y `Ocultos`. Se puede
+El script crea las pestañas `Lugares`, `Diario`, `Salidas` y `Ocultos`. El punto
+de salida y el equipo marcado de cada salida viajan en las columnas `origen` y
+`equipo` de `Salidas`; una hoja con un script anterior a esas columnas sigue
+funcionando, pero no los pasa de un dispositivo a otro hasta actualizar el
+script. Se puede
 editar la hoja a mano: una fila nueva en `Lugares` con nombre, `lat` y `lng`
 aparece en la app en la siguiente sincronización. Para borrar, escribe `TRUE`
 en la columna `borrado` en lugar de eliminar la fila.

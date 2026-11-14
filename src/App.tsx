@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CATALOG, isCatalogId, isOriginal } from './catalog';
 import { emptyData, loadData, saveData, stampChanges } from './store';
 import { cardinal, distanceKm, formatKm } from './geo';
+import { tripPoints, useRoadRoute } from './road';
 import { loadSyncConfig, mergeRemote, pushPull, saveSyncConfig, type SyncConfig, type SyncStatus } from './sync';
 import type { Data, LatLng, Place, Position } from './types';
 import MapView, { type Focus } from './components/MapView';
@@ -269,6 +270,9 @@ export default function App() {
         : null,
     [showRoute, openTrip, byId],
   );
+  const routeStart = (route && openTrip?.start) || null;
+  const routePoints = useMemo(() => tripPoints(routeStart ?? undefined, route ?? []), [routeStart, route]);
+  const road = useRoadRoute(routePoints);
 
   const target = targetId ? (byId.get(targetId) ?? null) : null;
   const targetKm = target && userPos ? distanceKm(userPos, target) : null;
@@ -385,6 +389,8 @@ export default function App() {
           places={mapPlaces}
           diary={data.diary}
           route={route}
+          routeStart={routeStart}
+          routeLine={road.status === 'ok' ? road.route.line : null}
           userPos={userPos}
           follow={follow}
           target={target}

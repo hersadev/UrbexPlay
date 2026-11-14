@@ -19,7 +19,7 @@ const HOJAS = {
     'aparcar', 'equipo', 'actualizado', 'borrado',
   ],
   Diario: ['id', 'lugar', 'estado', 'notas', 'visitas', 'actualizado', 'borrado'],
-  Salidas: ['id', 'nombre', 'fecha', 'notas', 'paradas', 'actualizado', 'borrado'],
+  Salidas: ['id', 'nombre', 'fecha', 'notas', 'paradas', 'origen', 'equipo', 'actualizado', 'borrado'],
   Ocultos: ['id', 'lugar', 'actualizado', 'borrado'],
 };
 
