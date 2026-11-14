@@ -87,6 +87,23 @@ function roadRoute(key: string): Promise<RoadRoute> {
   return promise;
 }
 
+/**
+ * Mejor orden para recorrer los puntos por carretera, según el servicio de
+ * viaje de OSRM. Devuelve los índices de `points` en el orden de visita. El
+ * primero se mantiene; con `roundtrip` se cuenta también la vuelta a él.
+ */
+export async function optimalOrder(points: LatLng[], roundtrip: boolean): Promise<number[]> {
+  const url =
+    `https://routing.openstreetmap.de/routed-car/trip/v1/driving/${keyOf(points)}` +
+    `?source=first&overview=false&roundtrip=${roundtrip}${roundtrip ? '' : '&destination=any'}`;
+  const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  if (!response.ok) throw new Error('orden');
+  const json = (await response.json()) as { code: string; waypoints?: { waypoint_index: number }[] };
+  if (json.code !== 'Ok' || json.waypoints?.length !== points.length) throw new Error('orden');
+  const position = json.waypoints.map((w) => w.waypoint_index);
+  return points.map((_, i) => i).sort((a, b) => position[a] - position[b]);
+}
+
 /** Ruta por carretera que pasa por los puntos en orden. Con menos de dos puntos no hace nada. */
 export function useRoadRoute(points: LatLng[], profile: Profile = 'coche'): RoadState {
   const key = points.length > 1 ? (profile === 'pie' ? FOOT : '') + keyOf(points) : '';

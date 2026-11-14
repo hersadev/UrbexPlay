@@ -52,6 +52,13 @@ usar sin cobertura, con GPS.
   otra salida. Con él, el total cuenta la ida y la vuelta.
 - **Luz**: con fecha, cada parada indica amanecer, atardecer y hora dorada (sol
   a menos de 6°). Se calcula en el dispositivo, con horizonte llano.
+- **Tiempo previsto**: con fecha a 16 días vista o menos, cada parada enseña la
+  previsión de Open-Meteo (cielo, temperaturas, lluvia y viento). Se le envían
+  las coordenadas de las paradas, redondeadas a unos 100 m.
+- **Mejor orden**: reordena las paradas por la ruta con menos carretera, con el
+  servicio de viaje de OSRM; sin conexión, por cercanía en línea recta.
+- **Dejar dicho adónde voy**: comparte por WhatsApp o por donde elijas un texto
+  con las paradas, sus coordenadas y la hora prevista de vuelta.
 - **Equipo**: lista marcable que sale del campo «Equipo recomendado» de las
   paradas, sin repetir lo que piden varias.
 
@@ -105,7 +112,8 @@ El script crea las pestañas `Lugares`, `Diario`, `Salidas` y `Ocultos`. El punt
 de salida y el equipo marcado de cada salida viajan en las columnas `origen` y
 `equipo` de `Salidas`; una hoja con un script anterior a esas columnas sigue
 funcionando, pero no los pasa de un dispositivo a otro hasta actualizar el
-script. Lo mismo ocurre con los puntos de aparcamiento y de entrada, en las
+script. Lo mismo ocurre con las horas de salida y de vuelta (columnas
+`hora_salida` y `hora_vuelta` de `Salidas`) y con los puntos de aparcamiento y de entrada, en las
 columnas `aparcamiento_coords` y `entrada_coords` de `Lugares`. Se puede
 editar la hoja a mano: una fila nueva en `Lugares` con nombre, `lat` y `lng`
 aparece en la app en la siguiente sincronización. Para borrar, escribe `TRUE`

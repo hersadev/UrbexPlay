@@ -119,6 +119,8 @@ function toTables(data: Data): Tables {
         paradas: t.placeIds.join(', '),
         origen: t.start ? `${t.start.lat.toFixed(5)}, ${t.start.lng.toFixed(5)} ${t.start.label}`.trim() : '',
         equipo: (t.packed ?? []).join(', '),
+        hora_salida: t.leaveAt ?? '',
+        hora_vuelta: t.backAt ?? '',
       };
     }
     tables[sheet].push({ id, ...(fields ?? {}), actualizado: String(stamp), borrado: fields ? '' : 'TRUE' });
@@ -207,9 +209,12 @@ function textToStart(text: string): TripStart | undefined {
 }
 
 /**
- * Una hoja con el script antiguo no tiene las columnas «origen» ni «equipo»:
- * en ese caso se conserva lo que hubiera en este dispositivo (`previous`).
+ * Una hoja con el script antiguo no tiene las columnas «origen», «equipo» ni
+ * las de las horas: en ese caso se conserva lo que hubiera en este dispositivo
+ * (`previous`).
  */
+const textToTime = (text: string) => (/^\s*\d{1,2}:\d{2}\s*$/.test(text) ? text.trim().padStart(5, '0') : undefined);
+
 function rowToTrip(row: Row, previous: Trip | undefined): Trip {
   const start = row.origen === undefined ? previous?.start : textToStart(row.origen);
   const packed =
@@ -219,6 +224,8 @@ function rowToTrip(row: Row, previous: Trip | undefined): Trip {
           .split(',')
           .map((key) => key.trim())
           .filter(Boolean);
+  const leaveAt = row.hora_salida === undefined ? previous?.leaveAt : textToTime(row.hora_salida);
+  const backAt = row.hora_vuelta === undefined ? previous?.backAt : textToTime(row.hora_vuelta);
   return {
     id: row.id.trim(),
     name: row.nombre ?? '',
@@ -227,6 +234,8 @@ function rowToTrip(row: Row, previous: Trip | undefined): Trip {
     placeIds: (row.paradas ?? '').split(/[,\s]+/).filter(Boolean),
     ...(start && { start }),
     ...(packed?.length && { packed }),
+    ...(leaveAt && { leaveAt }),
+    ...(backAt && { backAt }),
   };
 }
 

@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { gearList } from '../gear';
 import { distanceKm, drivePoint, formatKm, googleMapsRoute, nearestOrder, pathKm } from '../geo';
 import { loadSavedMaps, saveSavedMaps } from '../offline';
-import { formatDuration, tripPoints, useRoadRoute } from '../road';
+import { tripPlan } from '../plan';
+import { formatDuration, optimalOrder, tripPoints, useRoadRoute } from '../road';
 import { uid } from '../store';
 import { formatTime, sunTimes } from '../sun';
+import { describeWeather, useWeather } from '../weather';
 import TripMap from './TripMap';
 import TripStart from './TripStart';
 import { normalize } from '../text';
@@ -28,6 +30,7 @@ const formatDate = (iso: string) =>
 
 export default function Trips({ data, update, places, openId, setOpenId, onOpenPlace, onShowOnMap, notify }: Props) {
   const [stopQuery, setStopQuery] = useState('');
+  const [ordering, setOrdering] = useState(false);
   const byId = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
   const trip = data.trips.find((t) => t.id === openId);
   const stops = useMemo(
@@ -38,6 +41,7 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
   const points = useMemo(() => tripPoints(trip?.start, stops.map(drivePoint)), [trip?.start, stops]);
   const road = useRoadRoute(points);
   const gear = useMemo(() => gearList(stops), [stops]);
+  const weather = useWeather(trip?.date ?? '', stops);
 
   const patch = (id: string, change: Partial<Trip>) =>
     update((d) => ({ ...d, trips: d.trips.map((t) => (t.id === id ? { ...t, ...change } : t)) }));
@@ -132,6 +136,43 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
   const privateStops = stops.filter((p) => p.practical.ownership === 'privada');
   const hardStops = stops.filter((p) => p.practical.difficulty === 3);
 
+  /** Reordena las paradas por la ruta más corta por carretera; sin conexión, por cercanía en línea recta. */
+  const optimize = async () => {
+    const id = trip.id;
+    const previous = trip.placeIds;
+    const undo = () => patch(id, { placeIds: previous });
+    setOrdering(true);
+    try {
+      const drive = stops.map(drivePoint);
+      const order = await optimalOrder(start ? [start, ...drive] : drive, !!start);
+      const placeIds = (start ? order.filter((i) => i > 0).map((i) => i - 1) : order).map((i) => stops[i].id);
+      patch(id, { placeIds });
+      notify('Paradas en el orden con menos carretera.', { undo });
+    } catch {
+      const near = start ? nearestOrder<LatLng>([start, ...stops]).slice(1) : nearestOrder(stops);
+      patch(id, { placeIds: near.map((p) => (p as Place).id) });
+      notify('Sin conexión con el servicio de rutas: ordenadas por cercanía en línea recta.', { undo });
+    } finally {
+      setOrdering(false);
+    }
+  };
+
+  const sharePlan = async () => {
+    const text = tripPlan(trip, stops);
+    try {
+      // En el móvil, el menú de compartir del sistema (con WhatsApp); en el ordenador, WhatsApp Web.
+      if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ text });
+      else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    } catch (e) {
+      // Cerrar el menú de compartir no es un error; lo demás, se deja el texto en el portapapeles.
+      if (e instanceof Error && e.name === 'AbortError') return;
+      navigator.clipboard?.writeText(text).then(
+        () => notify('No se ha podido abrir el menú de compartir: el plan está copiado, pégalo donde quieras.'),
+        () => notify('No se ha podido compartir el plan.'),
+      );
+    }
+  };
+
   const move = (index: number, delta: number) => {
     const ids = stops.map((p) => p.id);
     const target = index + delta;
@@ -171,6 +212,26 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
         Fecha
         <input className="input" type="date" value={trip.date} onChange={(e) => patch(trip.id, { date: e.target.value })} />
       </label>
+      <div className="grid2">
+        <label className="field">
+          Hora de salida
+          <input
+            className="input"
+            type="time"
+            value={trip.leaveAt ?? ''}
+            onChange={(e) => patch(trip.id, { leaveAt: e.target.value || undefined })}
+          />
+        </label>
+        <label className="field">
+          Vuelta prevista
+          <input
+            className="input"
+            type="time"
+            value={trip.backAt ?? ''}
+            onChange={(e) => patch(trip.id, { backAt: e.target.value || undefined })}
+          />
+        </label>
+      </div>
 
       <TripStart start={start} suggestions={startOptions} onChange={(next) => patch(trip.id, { start: next })} />
 
@@ -179,20 +240,15 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
         {stops.length > 2 && (
           <button
             className="btn small"
-            onClick={() =>
-              patch(trip.id, {
-                placeIds: (start ? nearestOrder<LatLng>([start, ...stops]).slice(1) : nearestOrder(stops)).map(
-                  (p) => (p as Place).id,
-                ),
-              })
-            }
+            onClick={optimize}
+            disabled={ordering}
             title={
               start
-                ? 'Desde el punto de salida, encadena siempre la parada más cercana'
-                : 'Mantiene la primera parada y encadena siempre la más cercana'
+                ? 'Busca el orden con menos carretera, saliendo del punto de salida y volviendo a él'
+                : 'Mantiene la primera parada y busca el orden con menos carretera'
             }
           >
-            Ordenar por cercanía
+            {ordering ? 'Calculando…' : 'Mejor orden'}
           </button>
         )}
       </div>
@@ -220,6 +276,14 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
                         : `${formatKm(distanceKm(from, p))} en línea recta`
                     } desde ${i > 0 ? 'la anterior' : 'el punto de salida'}`}
                 </span>
+                {weather.status === 'ok' && weather.stops[i] && (
+                  <span className="muted stop-sun">
+                    {describeWeather(weather.stops[i].code).glyph} {describeWeather(weather.stops[i].code).label} ·{' '}
+                    {Math.round(weather.stops[i].min)}–{Math.round(weather.stops[i].max)}°
+                    {weather.stops[i].rain !== null && ` · lluvia ${weather.stops[i].rain}%`} · viento{' '}
+                    {Math.round(weather.stops[i].wind)} km/h
+                  </span>
+                )}
                 {sun && (
                   <span className="muted stop-sun">
                     ☀ {formatTime(sun.sunrise)}–{formatTime(sun.sunset)} · dorada hasta {formatTime(sun.goldenMorningEnd)}{' '}
@@ -255,7 +319,11 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
         <p className="muted small">
           {trip.date
             ? '☀ Amanecer y atardecer de ese día en cada parada, con horizonte llano. Hora dorada: el sol a menos de 6° de altura.'
-            : 'Pon fecha a la salida para ver el amanecer, el atardecer y la hora dorada de cada parada.'}
+            : 'Pon fecha a la salida para ver el tiempo previsto, el amanecer, el atardecer y la hora dorada de cada parada.'}
+          {weather.status === 'ok' && ' Tiempo previsto: Open-Meteo.'}
+          {weather.status === 'loading' && ' Consultando el tiempo previsto…'}
+          {weather.status === 'far' && ' La previsión del tiempo solo llega a 16 días vista: vuelve a mirar más cerca de la fecha.'}
+          {weather.status === 'error' && ' No se ha podido consultar el tiempo previsto: hace falta conexión.'}
         </p>
       )}
 
@@ -325,7 +393,19 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
             <button className="btn mobile-only" onClick={onShowOnMap}>
               Ver en el mapa
             </button>
+            <button
+              className="btn"
+              onClick={sharePlan}
+              title="Envía a quien tú elijas las paradas, sus coordenadas y la hora prevista de vuelta"
+            >
+              Dejar dicho adónde voy
+            </button>
           </div>
+          {!trip.backAt && (
+            <p className="muted small">
+              Indica la hora prevista de vuelta para que quien reciba el aviso sepa cuándo preocuparse.
+            </p>
+          )}
           {stops.length > 10 && (
             <p className="muted small">Google Maps solo admite 10 paradas por enlace; se incluyen las 9 primeras y la última.</p>
           )}

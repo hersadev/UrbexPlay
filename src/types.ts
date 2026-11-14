@@ -82,6 +82,9 @@ export interface Trip {
   notes: string;
   placeIds: string[];
   start?: TripStart;
+  /** Hora de salida y hora prevista de vuelta (`HH:MM`), para dejar dicho el plan. */
+  leaveAt?: string;
+  backAt?: string;
   /** Claves de los objetos de la lista de equipo ya preparados. */
   packed?: string[];
 }

@@ -89,3 +89,35 @@ describe('zip', () => {
     await expect(readZip(new Blob(['PK esto no es un zip']))).rejects.toThrow(/dañado/);
   });
 });
+
+describe('plan de la salida', () => {
+  it('lleva las paradas con sus coordenadas, las horas y la ruta', async () => {
+    const { tripPlan } = await import('../plan');
+    const stop = (name: string, lat: number, lng: number) => ({ name, town: 'Cartagena', lat, lng }) as never;
+    const text = tripPlan(
+      { id: 't', name: 'Baterías', date: '2026-11-21', notes: '', placeIds: [], leaveAt: '08:30', backAt: '19:00', start: { lat: 37.99, lng: -1.13, label: 'Murcia' } },
+      [stop('Castillitos', 37.54037, -1.12016), stop('Cenizas', 37.58, -0.82)],
+    );
+    expect(text).toContain('Salida de urbex: Baterías');
+    expect(text).toContain('salgo a las 08:30');
+    expect(text).toContain('Salgo de: Murcia');
+    expect(text).toContain('1. Castillitos, Cartagena');
+    expect(text).toContain('37.54037, -1.12016 · https://www.google.com/maps?q=37.54037,-1.12016');
+    expect(text).toContain('Vuelta prevista: 19:00');
+    expect(text).toContain('Ruta completa: https://www.google.com/maps/dir/');
+  });
+});
+
+describe('tiempo previsto', () => {
+  it('lee la respuesta de Open-Meteo con uno o varios puntos', async () => {
+    const { parseForecast, daysUntil, describeWeather } = await import('../weather');
+    const point = (code: number) => ({
+      daily: { weather_code: [code], temperature_2m_max: [21.8], temperature_2m_min: [8.7], precipitation_probability_max: [2], wind_speed_10m_max: [4.3] },
+    });
+    expect(parseForecast(point(3))).toEqual([{ code: 3, min: 8.7, max: 21.8, rain: 2, wind: 4.3 }]);
+    expect(parseForecast([point(0), point(95)]).map((w) => describeWeather(w.code).label)).toEqual(['Despejado', 'Tormenta']);
+    expect(() => parseForecast({ error: true })).toThrow();
+    expect(daysUntil('2026-11-21', '2026-11-14')).toBe(7);
+    expect(daysUntil('2026-11-13', '2026-11-14')).toBe(-1);
+  });
+});
