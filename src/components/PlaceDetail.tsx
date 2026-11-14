@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { distanceKm, drivePoint, formatCoords, formatKm, googleMapsRoute } from '../geo';
 import { formatDuration } from '../road';
 import { deletePhoto, deleteTrack, getPhoto, getTrack, savePhoto, uid } from '../store';
@@ -33,6 +33,10 @@ interface Props {
   onRecord: () => void;
   onStopRecord: () => void;
   onShowTrack: (points: TrackPoint[], label: string) => void;
+  /** El visor de fotos está abierto (lo decide la URL, para que «atrás» lo cierre). */
+  viewer: boolean;
+  onOpenViewer: () => void;
+  onCloseViewer: () => void;
   onBack: () => void;
   onShowOnMap: () => void;
   onGuide: () => void;
@@ -41,9 +45,11 @@ interface Props {
   onRestore: () => void;
 }
 
-function Photo({ id, onDelete }: { id: string; onDelete: () => void }) {
+/** URL local de una foto guardada; se libera al dejar de usarla. */
+function usePhotoUrl(id: string) {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
+    setUrl(undefined);
     let objectUrl: string | undefined;
     let cancelled = false;
     getPhoto(id).then((blob) => {
@@ -57,16 +63,104 @@ function Photo({ id, onDelete }: { id: string; onDelete: () => void }) {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [id]);
+  return url;
+}
+
+function Photo({ id, onOpen, onDelete }: { id: string; onOpen: () => void; onDelete: () => void }) {
+  const url = usePhotoUrl(id);
   if (!url) return null;
   return (
     <span className="photo">
-      <a href={url} target="_blank" rel="noreferrer">
+      <button className="photo-open" onClick={onOpen} aria-label="Ver la foto a pantalla completa">
         <img src={url} alt="Foto de la visita" />
-      </a>
+      </button>
       <button className="photo-del" onClick={onDelete} aria-label="Borrar foto">
         ×
       </button>
     </span>
+  );
+}
+
+/** Visor a pantalla completa de las fotos de una visita. */
+function Viewer({
+  ids,
+  index,
+  onIndex,
+  onClose,
+}: {
+  ids: string[];
+  index: number;
+  onIndex: (index: number) => void;
+  onClose: () => void;
+}) {
+  const url = usePhotoUrl(ids[index]);
+  const touchX = useRef<number | null>(null);
+  const step = (delta: number) => {
+    const next = index + delta;
+    if (next >= 0 && next < ids.length) onIndex(next);
+  };
+  const live = useRef({ step, onClose });
+  live.current = { step, onClose };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') live.current.onClose();
+      if (e.key === 'ArrowLeft') live.current.step(-1);
+      if (e.key === 'ArrowRight') live.current.step(1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  return (
+    <div
+      className="viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Foto de la visita"
+      onClick={onClose}
+      onTouchStart={(e) => (touchX.current = e.touches.length === 1 ? e.touches[0].clientX : null)}
+      onTouchEnd={(e) => {
+        if (touchX.current === null) return;
+        const dx = e.changedTouches[0].clientX - touchX.current;
+        touchX.current = null;
+        if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1);
+      }}
+    >
+      {url && <img src={url} alt={`Foto ${index + 1} de ${ids.length}`} onClick={(e) => e.stopPropagation()} />}
+      <button className="viewer-btn viewer-close" onClick={onClose} aria-label="Cerrar">
+        ×
+      </button>
+      {ids.length > 1 && (
+        <>
+          <button
+            className="viewer-btn viewer-prev"
+            onClick={(e) => {
+              e.stopPropagation();
+              step(-1);
+            }}
+            disabled={index === 0}
+            aria-label="Foto anterior"
+          >
+            ‹
+          </button>
+          <button
+            className="viewer-btn viewer-next"
+            onClick={(e) => {
+              e.stopPropagation();
+              step(1);
+            }}
+            disabled={index === ids.length - 1}
+            aria-label="Foto siguiente"
+          >
+            ›
+          </button>
+          <span className="viewer-count">
+            {index + 1} / {ids.length}
+          </span>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -126,6 +220,9 @@ export default function PlaceDetail({
   onRecord,
   onStopRecord,
   onShowTrack,
+  viewer,
+  onOpenViewer,
+  onCloseViewer,
   onBack,
   onShowOnMap,
   onGuide,
@@ -138,6 +235,18 @@ export default function PlaceDetail({
   const p = place.practical;
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  /** Fotos que enseña el visor y cuál de ellas. */
+  const [shown, setShown] = useState<{ ids: string[]; index: number } | null>(null);
+  const openViewer = (ids: string[], index: number) => {
+    setShown({ ids, index });
+    onOpenViewer();
+  };
+  // La URL dice «visor abierto» pero no hay foto elegida (recarga): se vuelve a la ficha.
+  useEffect(() => {
+    if (viewer && !shown) onCloseViewer();
+    if (!viewer && shown) setShown(null);
+    // Solo al cambiar la URL.
+  }, [viewer]);
 
   const setDiary = (fn: (d: Diary) => Diary) =>
     update((d) => ({ ...d, diary: { ...d.diary, [place.id]: fn(d.diary[place.id] ?? emptyDiary()) } }));
@@ -492,8 +601,8 @@ export default function PlaceDetail({
               />
             )}
             <div className="photos">
-              {v.photos.map((id) => (
-                <Photo key={id} id={id} onDelete={() => removePhoto(v.id, id)} />
+              {v.photos.map((id, i) => (
+                <Photo key={id} id={id} onOpen={() => openViewer(v.photos, i)} onDelete={() => removePhoto(v.id, id)} />
               ))}
               <label className="photo add">
                 {busy ? '…' : '+ Fotos'}
@@ -513,6 +622,15 @@ export default function PlaceDetail({
           </div>
         ))}
       </section>
+
+      {viewer && shown && (
+        <Viewer
+          ids={shown.ids}
+          index={shown.index}
+          onIndex={(index) => setShown({ ids: shown.ids, index })}
+          onClose={onCloseViewer}
+        />
+      )}
 
       <footer className="row">
         <button className="btn" onClick={onEdit}>

@@ -37,13 +37,24 @@ function withStamps(data: Data): Data {
 /** Marca con la hora actual todo registro que difiera entre `prev` y `next`. */
 export function stampChanges(prev: Data, next: Data): Data {
   if (prev === next) return next;
-  const before = records(prev);
-  const after = records(next);
   const stamps = { ...next.stamps };
   const now = Date.now();
-  for (const key of new Set([...before.keys(), ...after.keys()])) {
-    if (before.get(key) !== after.get(key)) stamps[key] = now;
+  // Los cambios no mutan: un registro con la misma referencia no ha cambiado y no hace
+  // falta serializarlo. Así, escribir en una nota solo compara ese diario.
+  const mark = (prefix: string, before: Map<string, unknown>, after: Map<string, unknown>) => {
+    for (const [id, value] of after) {
+      const old = before.get(id);
+      if (old !== value && JSON.stringify(old) !== JSON.stringify(value)) stamps[`${prefix}:${id}`] = now;
+    }
+    for (const id of before.keys()) if (!after.has(id)) stamps[`${prefix}:${id}`] = now;
+  };
+  const byId = <T extends { id: string }>(list: T[]) => new Map<string, unknown>(list.map((item) => [item.id, item]));
+  if (prev.custom !== next.custom) mark('p', byId(prev.custom), byId(next.custom));
+  if (prev.hidden !== next.hidden) {
+    mark('h', new Map(prev.hidden.map((id) => [id, 1])), new Map(next.hidden.map((id) => [id, 1])));
   }
+  if (prev.diary !== next.diary) mark('d', new Map(Object.entries(prev.diary)), new Map(Object.entries(next.diary)));
+  if (prev.trips !== next.trips) mark('t', byId(prev.trips), byId(next.trips));
   return { ...next, stamps };
 }
 

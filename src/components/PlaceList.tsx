@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { isCatalogId } from '../catalog';
 import { distanceKm, formatKm } from '../geo';
-import { TYPE_META, TYPES, type Diary, type LatLng, type Place, type PlaceType, type Status } from '../types';
+import { TYPE_META, TYPES, type LatLng, type Place, type PlaceType, type Status } from '../types';
 
 interface Props {
   places: Place[];
-  diary: Record<string, Diary>;
+  /** Estado en el diario de los lugares marcados (pendiente o visitado). */
+  statuses: Record<string, Status>;
   userPos: LatLng | null;
   onLocate: () => void;
   onOpen: (id: string) => void;
@@ -23,7 +24,7 @@ const normalize = (s: string) =>
 
 const RADII = [0, 25, 50, 100, 200];
 
-export default function PlaceList({ places, diary, userPos, onLocate, onOpen, onAdd, onImport, onVisible }: Props) {
+export default function PlaceList({ places, statuses, userPos, onLocate, onOpen, onAdd, onImport, onVisible }: Props) {
   const [query, setQuery] = useState('');
   const [types, setTypes] = useState<Set<PlaceType>>(new Set());
   const [province, setProvince] = useState('');
@@ -43,7 +44,7 @@ export default function PlaceList({ places, diary, userPos, onLocate, onOpen, on
       .filter(({ place, km }) => {
         if (types.size && !types.has(place.type)) return false;
         if (province && place.province !== province) return false;
-        if (status && (diary[place.id]?.status ?? 'ninguno') !== status) return false;
+        if (status && (statuses[place.id] ?? 'ninguno') !== status) return false;
         if (onlyLegend && !place.legend.trim()) return false;
         if (radius && km !== null && km > radius) return false;
         if (q && !normalize(`${place.name} ${place.town} ${place.province} ${place.summary}`).includes(q)) return false;
@@ -51,7 +52,7 @@ export default function PlaceList({ places, diary, userPos, onLocate, onOpen, on
       });
     if (userPos) rows.sort((a, b) => a.km! - b.km!);
     return rows;
-  }, [places, diary, userPos, query, types, province, status, radius, onlyLegend]);
+  }, [places, statuses, userPos, query, types, province, status, radius, onlyLegend]);
 
   useEffect(() => onVisible(shown.map((r) => r.place)), [shown, onVisible]);
 
@@ -166,7 +167,7 @@ export default function PlaceList({ places, diary, userPos, onLocate, onOpen, on
       <ul className="cards">
         {shown.map(({ place, km }) => {
           const meta = TYPE_META[place.type];
-          const st = diary[place.id]?.status ?? 'ninguno';
+          const st = statuses[place.id] ?? 'ninguno';
           return (
             <li key={place.id}>
               <button className="card" onClick={() => onOpen(place.id)}>

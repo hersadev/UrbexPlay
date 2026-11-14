@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
  *   #/lugar/<id>  #/lugar/<id>/editar
  *   #/salida/<id>  #/salida/<id>/mapa
  *   …/situar tras un formulario: se está eligiendo el punto en el mapa.
+ *   #/lugar/<id>/foto: visor de fotos abierto sobre la ficha.
  */
 
 export type Tab = 'mapa' | 'lugares' | 'salidas' | 'ajustes';
@@ -23,6 +24,8 @@ export interface Route {
   importing: boolean;
   /** Se está eligiendo en el mapa el punto del formulario. */
   picking: boolean;
+  /** Visor de fotos abierto sobre la ficha. */
+  photo: boolean;
   tripId: string | null;
   /** El mapa enseña la salida abierta en lugar de todos los lugares. */
   tripOnMap: boolean;
@@ -44,11 +47,13 @@ export const paths = {
   importPlaces: '#/lugares/importar',
   place: (id: string) => `#/lugar/${enc(id)}`,
   editPlace: (id: string) => `#/lugar/${enc(id)}/editar`,
+  photo: (id: string) => `#/lugar/${enc(id)}/foto`,
   trip: (id: string) => `#/salida/${enc(id)}`,
   tripMap: (id: string) => `#/salida/${enc(id)}/mapa`,
 };
 
-const PICK = '/situar';
+/** Pantallas que solo tienen sentido viniendo de la anterior: el punto del formulario y el visor de fotos. */
+const TRANSIENT = /\/(situar|foto)$/;
 
 const defaultTab = (): Tab => (window.innerWidth >= 900 ? 'lugares' : 'mapa');
 
@@ -68,6 +73,7 @@ export function parseRoute(hash: string): Route {
     form: null,
     importing: false,
     picking: false,
+    photo: false,
     tripId: null,
     tripOnMap: false,
   };
@@ -87,6 +93,7 @@ export function parseRoute(hash: string): Route {
         placeId: a,
         form: b === 'editar' ? 'editar' : null,
         picking: b === 'editar' && c === 'situar',
+        photo: b === 'foto',
       };
     case 'salida':
       if (!a) return { ...base, tab: 'salidas' };
@@ -106,8 +113,8 @@ let started = false;
 /** Deja la entrada actual con una URL reconocible y con su marca. Se puede repetir sin efecto. */
 function settle() {
   let hash = location.hash;
-  // Sin el formulario detrás (recarga, enlace directo) no hay punto que situar.
-  if (hash.endsWith(PICK) && !depth()) hash = hash.slice(0, -PICK.length);
+  // Sin la pantalla de la que salen (recarga, enlace directo) no hay nada que situar ni que enseñar.
+  if (!depth()) hash = hash.replace(TRANSIENT, '');
   if (!/^#\/(mapa|lugares|lugar|salidas|salida|ajustes)(\/|$)/.test(hash)) hash = paths.tab(defaultTab());
   const state = entry();
   if (typeof state?.idx !== 'number') {

@@ -19,7 +19,15 @@ import { localDate, trackKm } from './track';
 import { formatDuration, tripPoints, useRoadRoute } from './road';
 import { loadSyncConfig, mergeRemote, pushPull, saveSyncConfig, type SyncConfig, type SyncStatus } from './sync';
 import { paths, useNav, type Tab } from './nav';
-import { emptyDiary, type Data, type LatLng, type Place, type Position, type TrackPoint } from './types';
+import {
+  emptyDiary,
+  type Data,
+  type LatLng,
+  type Place,
+  type Position,
+  type Status,
+  type TrackPoint,
+} from './types';
 import Compass, { requestCompass } from './components/Compass';
 import MapView, { type Focus, type Mark, type Target } from './components/MapView';
 import PlaceList from './components/PlaceList';
@@ -154,6 +162,14 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [data, loaded, syncConfig, syncNow]);
 
+  /** Hay cambios en memoria que aún no se han escrito en el dispositivo. */
+  const unsaved = useRef(false);
+  const flush = useCallback(() => {
+    if (!unsaved.current) return;
+    unsaved.current = false;
+    saveData(live.current.data).catch(() => setNotice('No se han podido guardar los cambios.'));
+  }, []);
+
   const changeSyncConfig = (config: SyncConfig | null) => {
     setSyncConfig(config);
     setSyncStatus({ state: 'off' });
@@ -161,8 +177,38 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (loaded) saveData(data).catch(() => setNotice('No se han podido guardar los cambios.'));
-  }, [data, loaded]);
+    if (!loaded) return;
+    // Se guarda al dejar de escribir, no en cada tecla.
+    unsaved.current = true;
+    const timer = setTimeout(flush, 500);
+    return () => clearTimeout(timer);
+  }, [data, loaded, flush]);
+
+  // Y sin esperar si la app pasa a segundo plano o se cierra.
+  useEffect(() => {
+    const onHide = () => document.visibilityState === 'hidden' && flush();
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, [flush]);
+
+  /**
+   * Estado de los lugares marcados. Conserva la misma referencia mientras ninguno
+   * cambie, para que escribir en el diario no repinte la lista ni el mapa.
+   */
+  const statusCache = useRef<Record<string, Status>>({});
+  const statuses = useMemo(() => {
+    const next: Record<string, Status> = {};
+    for (const [id, d] of Object.entries(data.diary)) if (d.status !== 'ninguno') next[id] = d.status;
+    const prev = statusCache.current;
+    const ids = Object.keys(next);
+    const same = ids.length === Object.keys(prev).length && ids.every((id) => prev[id] === next[id]);
+    if (!same) statusCache.current = next;
+    return statusCache.current;
+  }, [data.diary]);
 
   const places = useMemo(() => {
     const custom = new Map(data.custom.map((p) => [p.id, p]));
@@ -218,10 +264,25 @@ export default function App() {
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 },
     );
     // Mantiene la pantalla encendida mientras se sigue la posición, donde el navegador lo permite.
+    // El navegador suelta el bloqueo al salir de la app: se vuelve a pedir al regresar.
     let lock: WakeLockSentinel | undefined;
-    navigator.wakeLock?.request('screen').then((l) => (lock = l)).catch(() => {});
+    let stopped = false;
+    const hold = () => {
+      navigator.wakeLock
+        ?.request('screen')
+        .then((l) => {
+          if (stopped) l.release().catch(() => {});
+          else lock = l;
+        })
+        .catch(() => {});
+    };
+    hold();
+    const onVisible = () => document.visibilityState === 'visible' && hold();
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       navigator.geolocation.clearWatch(watch);
+      stopped = true;
+      document.removeEventListener('visibilitychange', onVisible);
       lock?.release().catch(() => {});
     };
   }, [tracking]);
@@ -569,6 +630,9 @@ export default function App() {
             onRecord={() => startRecording(detail.id)}
             onStopRecord={stopRecording}
             onShowTrack={showTrack}
+            viewer={nav.route.photo}
+            onOpenViewer={() => nav.go(paths.photo(detail.id))}
+            onCloseViewer={() => nav.back(paths.place(detail.id))}
             onEdit={() => nav.go(paths.editPlace(detail.id))}
             onRemove={() => removePlace(detail)}
             onRestore={() => restoreOriginal(detail.id)}
@@ -603,7 +667,7 @@ export default function App() {
         <div hidden={importing || !!editing || tab !== 'lugares' || !!detail}>
           <PlaceList
             places={places}
-            diary={data.diary}
+            statuses={statuses}
             userPos={userPos}
             onLocate={startTracking}
             onOpen={openDetail}
@@ -617,7 +681,7 @@ export default function App() {
       <section className="map-wrap" aria-label="Mapa">
         <MapView
           places={mapPlaces}
-          diary={data.diary}
+          statuses={statuses}
           route={route}
           routeStart={routeStart}
           routeLine={road.status === 'ok' ? road.route.line : null}

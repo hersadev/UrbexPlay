@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { IGN_ORTO, IGN_TOPO, cachedTile } from '../offline';
-import { TYPE_META, type Diary, type LatLng, type Place, type Position } from '../types';
+import { TYPE_META, type LatLng, type Place, type Position, type Status } from '../types';
 
 /** Punto auxiliar del mapa: el coche, un aparcamiento o una entrada. */
 export interface Mark extends LatLng {
@@ -22,7 +22,8 @@ export interface Focus extends LatLng {
 
 interface Props {
   places: Place[];
-  diary: Record<string, Diary>;
+  /** Estado en el diario de los lugares marcados (pendiente o visitado). */
+  statuses: Record<string, Status>;
   route: Place[] | null;
   /** Punto de salida de la ruta, al que también se vuelve. */
   routeStart?: LatLng | null;
@@ -74,7 +75,7 @@ const SavedFirstLayer = L.TileLayer.extend({
 
 export default function MapView({
   places,
-  diary,
+  statuses,
   route,
   routeStart,
   routeLine,
@@ -150,7 +151,7 @@ export default function MapView({
     markers.current.clearLayers();
     for (const place of places) {
       const meta = TYPE_META[place.type];
-      const status = diary[place.id]?.status ?? 'ninguno';
+      const status = statuses[place.id] ?? 'ninguno';
       const icon = L.divIcon({
         className: '',
         html: `<span class="pin ${status}" style="--c:${meta.color}">${meta.glyph}</span>`,
@@ -176,7 +177,7 @@ export default function MapView({
 
       L.marker([place.lat, place.lng], { icon, title: place.name }).bindPopup(popup).addTo(markers.current);
     }
-  }, [places, diary]);
+  }, [places, statuses]);
 
   useEffect(() => {
     routeLayer.current.clearLayers();
