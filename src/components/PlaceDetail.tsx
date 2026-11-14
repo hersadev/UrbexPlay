@@ -11,6 +11,7 @@ import {
   type Data,
   type Diary,
   type LatLng,
+  type Notify,
   type Place,
   type Status,
   type TrackPoint,
@@ -33,6 +34,7 @@ interface Props {
   onRecord: () => void;
   onStopRecord: () => void;
   onShowTrack: (points: TrackPoint[], label: string) => void;
+  notify: Notify;
   /** El visor de fotos está abierto (lo decide la URL, para que «atrás» lo cierre). */
   viewer: boolean;
   onOpenViewer: () => void;
@@ -220,6 +222,7 @@ export default function PlaceDetail({
   onRecord,
   onStopRecord,
   onShowTrack,
+  notify,
   viewer,
   onOpenViewer,
   onCloseViewer,
@@ -265,11 +268,24 @@ export default function PlaceDetail({
     setDiary((d) => ({ ...d, visits: d.visits.map((v) => (v.id === id ? { ...v, ...patch } : v)) }));
 
   const removeVisit = (id: string) => {
-    if (!confirm('¿Borrar esta visita y sus fotos?')) return;
-    const visit = diary.visits.find((v) => v.id === id);
-    visit?.photos.forEach(deletePhoto);
-    if (visit?.track) deleteTrack(visit.track);
+    const index = diary.visits.findIndex((v) => v.id === id);
+    const visit = diary.visits[index];
+    if (!visit) return;
     setDiary((d) => ({ ...d, visits: d.visits.filter((v) => v.id !== id) }));
+    // Las fotos y el recorrido no se borran hasta que pasa el plazo para deshacer.
+    notify('Visita borrada.', {
+      undo: () =>
+        setDiary((d) => {
+          if (d.visits.some((v) => v.id === id)) return d;
+          const visits = [...d.visits];
+          visits.splice(Math.min(index, visits.length), 0, visit);
+          return { ...d, visits };
+        }),
+      commit: () => {
+        visit.photos.forEach(deletePhoto);
+        if (visit.track) deleteTrack(visit.track);
+      },
+    });
   };
 
   const addPhotos = async (visitId: string, files: FileList | null) => {
@@ -283,15 +299,21 @@ export default function PlaceDetail({
         visits: d.visits.map((v) => (v.id === visitId ? { ...v, photos: [...v.photos, ...ids] } : v)),
       }));
     } catch {
-      alert('No se ha podido guardar alguna de las fotos.');
+      notify('No se ha podido guardar alguna de las fotos.');
     } finally {
       setBusy(false);
     }
   };
 
   const removeTrack = (visitId: string, trackId: string) => {
-    if (!confirm('¿Borrar el recorrido grabado de esta visita?')) return;
-    deleteTrack(trackId);
+    notify('Recorrido borrado.', {
+      undo: () =>
+        setDiary((d) => ({
+          ...d,
+          visits: d.visits.map((v) => (v.id === visitId && !v.track ? { ...v, track: trackId } : v)),
+        })),
+      commit: () => deleteTrack(trackId),
+    });
     setDiary((d) => ({
       ...d,
       visits: d.visits.map((v) => {
@@ -303,7 +325,20 @@ export default function PlaceDetail({
   };
 
   const removePhoto = (visitId: string, photoId: string) => {
-    deletePhoto(photoId);
+    const index = diary.visits.find((v) => v.id === visitId)?.photos.indexOf(photoId) ?? 0;
+    notify('Foto borrada.', {
+      undo: () =>
+        setDiary((d) => ({
+          ...d,
+          visits: d.visits.map((v) => {
+            if (v.id !== visitId || v.photos.includes(photoId)) return v;
+            const photos = [...v.photos];
+            photos.splice(Math.min(index, photos.length), 0, photoId);
+            return { ...v, photos };
+          }),
+        })),
+      commit: () => deletePhoto(photoId),
+    });
     setDiary((d) => ({
       ...d,
       visits: d.visits.map((v) => (v.id === visitId ? { ...v, photos: v.photos.filter((x) => x !== photoId) } : v)),
@@ -345,16 +380,8 @@ export default function PlaceDetail({
   const edited = isCatalog && !original;
 
   const remove = () => {
-    const message = isCatalog
-      ? `¿Ocultar «${place.name}»? Podrás recuperarlo desde Ajustes. Se borrarán tus notas de este lugar.`
-      : `¿Eliminar «${place.name}» y tus notas de este lugar? No se puede deshacer.`;
-    if (confirm(message)) {
-      diary.visits.forEach((v) => {
-        v.photos.forEach(deletePhoto);
-        if (v.track) deleteTrack(v.track);
-      });
-      onRemove();
-    }
+    // Sin pregunta previa: el aviso que sale después permite deshacerlo.
+    onRemove();
   };
 
   return (

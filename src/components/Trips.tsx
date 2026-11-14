@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { gearList } from '../gear';
 import { distanceKm, drivePoint, formatKm, googleMapsRoute, nearestOrder, pathKm } from '../geo';
 import { loadSavedMaps, saveSavedMaps } from '../offline';
@@ -7,7 +7,8 @@ import { uid } from '../store';
 import { formatTime, sunTimes } from '../sun';
 import TripMap from './TripMap';
 import TripStart from './TripStart';
-import { OWNERSHIP_LABEL, TYPE_META, type Data, type LatLng, type Place, type Trip } from '../types';
+import { normalize } from '../text';
+import { OWNERSHIP_LABEL, TYPE_META, type Data, type LatLng, type Notify, type Place, type Trip } from '../types';
 
 interface Props {
   data: Data;
@@ -17,6 +18,7 @@ interface Props {
   setOpenId: (id: string | null) => void;
   onOpenPlace: (id: string) => void;
   onShowOnMap: () => void;
+  notify: Notify;
 }
 
 const formatDate = (iso: string) =>
@@ -24,7 +26,8 @@ const formatDate = (iso: string) =>
     ? new Date(`${iso}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
     : 'Sin fecha';
 
-export default function Trips({ data, update, places, openId, setOpenId, onOpenPlace, onShowOnMap }: Props) {
+export default function Trips({ data, update, places, openId, setOpenId, onOpenPlace, onShowOnMap, notify }: Props) {
+  const [stopQuery, setStopQuery] = useState('');
   const byId = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
   const trip = data.trips.find((t) => t.id === openId);
   const stops = useMemo(
@@ -89,6 +92,19 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
   }
 
   const available = places.filter((p) => !trip.placeIds.includes(p.id));
+  /** Desde dónde se mide lo cerca que queda cada candidata: la última parada o el punto de salida. */
+  const near: LatLng | undefined = stops[stops.length - 1] ?? trip.start;
+  const query = normalize(stopQuery.trim());
+  // Sin texto se proponen los pendientes del diario; con texto, lo que coincida.
+  const candidates = available
+    .filter((p) =>
+      query
+        ? normalize(`${p.name} ${p.town} ${p.province}`).includes(query)
+        : data.diary[p.id]?.status === 'pendiente',
+    )
+    .map((p) => ({ place: p, km: near ? distanceKm(near, p) : null }))
+    .sort((a, b) => (a.km ?? 0) - (b.km ?? 0))
+    .slice(0, 8);
   const start = trip.start;
   const legs = road.status === 'ok' ? road.route.legs : null;
   /** Tramo que llega a la parada `i`; con origen, el primero sale de él. */
@@ -125,9 +141,14 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
   };
 
   const remove = () => {
-    if (!confirm(`¿Eliminar la salida «${trip.name || 'sin nombre'}»? Los lugares no se borran.`)) return;
-    update((d) => ({ ...d, trips: d.trips.filter((t) => t.id !== trip.id) }));
-    loadSavedMaps().then(({ [trip.id]: _gone, ...rest }) => saveSavedMaps(rest));
+    const removed = trip;
+    update((d) => ({ ...d, trips: d.trips.filter((t) => t.id !== removed.id) }));
+    notify(`Salida «${removed.name || 'sin nombre'}» eliminada.`, {
+      undo: () => update((d) => (d.trips.some((t) => t.id === removed.id) ? d : { ...d, trips: [...d.trips, removed] })),
+      commit: () => {
+        loadSavedMaps().then(({ [removed.id]: _gone, ...rest }) => saveSavedMaps(rest));
+      },
+    });
     setOpenId(null);
   };
 
@@ -238,19 +259,39 @@ export default function Trips({ data, update, places, openId, setOpenId, onOpenP
         </p>
       )}
 
-      <select
-        className="input"
-        value=""
-        onChange={(e) => e.target.value && patch(trip.id, { placeIds: [...trip.placeIds, e.target.value] })}
-        aria-label="Añadir parada"
-      >
-        <option value="">+ Añadir parada…</option>
-        {available.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name} ({p.province})
-          </option>
-        ))}
-      </select>
+      <div className="stop-picker">
+        <input
+          className="input"
+          type="search"
+          value={stopQuery}
+          placeholder="+ Añadir parada: busca por nombre o municipio"
+          onChange={(e) => setStopQuery(e.target.value)}
+          aria-label="Buscar un lugar para añadirlo como parada"
+        />
+        {candidates.length > 0 && (
+          <>
+            {!query && <p className="muted small">Pendientes de tu diario{near && ', del más cercano al más lejano'}:</p>}
+            <ul className="results">
+              {candidates.map(({ place: p, km }) => (
+                <li key={p.id}>
+                  <button
+                    className="result"
+                    onClick={() => patch(trip.id, { placeIds: [...trip.placeIds, p.id] })}
+                    aria-label={`Añadir ${p.name} como parada`}
+                  >
+                    <span className="card-title">+ {p.name}</span>
+                    <span className="muted small">
+                      {p.town} · {p.province}
+                      {km !== null && ` · a ${formatKm(km)} ${stops.length ? 'de la última parada' : 'del punto de salida'}`}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {query && candidates.length === 0 && <p className="muted small">Ningún lugar coincide.</p>}
+      </div>
 
       {stops.length > 0 && (
         <>

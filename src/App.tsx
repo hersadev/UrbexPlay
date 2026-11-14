@@ -16,13 +16,16 @@ import {
 } from './store';
 import { bearing, cardinal, distanceKm, drivePoint, formatKm, nearestOnLine } from './geo';
 import { localDate, trackKm } from './track';
+import { deletePhoto, deleteTrack } from './store';
 import { formatDuration, tripPoints, useRoadRoute } from './road';
 import { loadSyncConfig, mergeRemote, pushPull, saveSyncConfig, type SyncConfig, type SyncStatus } from './sync';
 import { paths, useNav, type Tab } from './nav';
 import {
   emptyDiary,
   type Data,
+  type Diary,
   type LatLng,
+  type Notify,
   type Place,
   type Position,
   type Status,
@@ -85,7 +88,27 @@ export default function App() {
   /** Recorrido guardado que se enseña en el mapa. */
   const [shownTrack, setShownTrack] = useState<{ label: string; line: [number, number][]; key: number } | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
-  const [notice, setNotice] = useState('');
+  const [notice, setNoticeState] = useState<{ text: string; undo?: () => void; commit?: () => void } | null>(null);
+  /** El aviso a la vista, para rematar lo que tenga pendiente cuando otro lo sustituya. */
+  const shownNotice = useRef(notice);
+  const setNotice = useCallback<Notify>((text, actions) => {
+    shownNotice.current?.commit?.();
+    const next = text ? { text, ...actions } : null;
+    shownNotice.current = next;
+    setNoticeState(next);
+  }, []);
+  // Los avisos se van solos; con «Deshacer» duran algo más.
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(''), notice.undo ? 8000 : 6000);
+    return () => clearTimeout(timer);
+  }, [notice, setNotice]);
+  const undoNotice = () => {
+    const undo = shownNotice.current?.undo;
+    shownNotice.current = null;
+    setNoticeState(null);
+    undo?.();
+  };
 
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: 'off' });
@@ -445,6 +468,34 @@ export default function App() {
   }, [data.custom, data.hidden]);
 
   const removePlace = (place: Place) => {
+    // Se guarda lo que se quita para poder devolverlo con «Deshacer».
+    const own = data.custom.find((p) => p.id === place.id);
+    const diary: Diary | undefined = data.diary[place.id];
+    const inTrips = new Map(
+      data.trips.filter((t) => t.placeIds.includes(place.id)).map((t) => [t.id, t.placeIds.indexOf(place.id)]),
+    );
+    const catalog = CATALOG_IDS.has(place.id);
+    setNotice(catalog ? `«${place.name}» está oculto.` : `«${place.name}» se ha eliminado.`, {
+      undo: () =>
+        update((d) => ({
+          ...d,
+          custom: own && !d.custom.some((p) => p.id === own.id) ? [...d.custom, own] : d.custom,
+          hidden: d.hidden.filter((id) => id !== place.id),
+          diary: diary ? { ...d.diary, [place.id]: diary } : d.diary,
+          trips: d.trips.map((t) => {
+            const index = inTrips.get(t.id);
+            if (index === undefined || t.placeIds.includes(place.id)) return t;
+            const placeIds = [...t.placeIds];
+            placeIds.splice(Math.min(index, placeIds.length), 0, place.id);
+            return { ...t, placeIds };
+          }),
+        })),
+      commit: () =>
+        diary?.visits.forEach((v) => {
+          v.photos.forEach(deletePhoto);
+          if (v.track) deleteTrack(v.track);
+        }),
+    });
     update((d) => {
       const { [place.id]: _gone, ...diary } = d.diary;
       return {
@@ -630,6 +681,7 @@ export default function App() {
             onRecord={() => startRecording(detail.id)}
             onStopRecord={stopRecording}
             onShowTrack={showTrack}
+            notify={setNotice}
             viewer={nav.route.photo}
             onOpenViewer={() => nav.go(paths.photo(detail.id))}
             onCloseViewer={() => nav.back(paths.place(detail.id))}
@@ -643,6 +695,7 @@ export default function App() {
             update={update}
             places={places}
             openId={openTripId}
+            notify={setNotice}
             setOpenId={(id) => (id ? nav.go(paths.trip(id)) : nav.back(paths.tab('salidas')))}
             onOpenPlace={openDetail}
             onShowOnMap={() => {
@@ -816,10 +869,17 @@ export default function App() {
 
       {notice && (
         <div className="toast" role="status">
-          {notice}
-          <button className="btn small" onClick={() => setNotice('')}>
-            Cerrar
-          </button>
+          {notice.text}
+          <span className="row nowrap">
+            {notice.undo && (
+              <button className="btn small primary" onClick={undoNotice}>
+                Deshacer
+              </button>
+            )}
+            <button className="btn small" onClick={() => setNotice('')} aria-label="Cerrar el aviso">
+              ×
+            </button>
+          </span>
         </div>
       )}
     </div>

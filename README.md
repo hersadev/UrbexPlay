@@ -69,7 +69,8 @@ usar sin cobertura, con GPS.
 ## Datos
 
 - Todo se guarda en el navegador (IndexedDB). Desde **Ajustes** se exporta e
-  importa una copia en JSON, que incluye las fotos.
+  importa una copia en ZIP, que incluye las fotos y los recorridos. Las copias
+  antiguas en JSON se siguen pudiendo importar.
 - Opcionalmente se sincroniza con una hoja de cálculo de Google (ver más abajo).
 - El catálogo inicial está en `src/catalog.ts`. La historia y las coordenadas
   salen de los artículos de Wikipedia enlazados en cada ficha; las coordenadas

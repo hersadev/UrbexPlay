@@ -1047,3 +1047,14 @@ progress {
   color: #fff;
   font-size: 0.85rem;
 }
+
+/* ── Buscador de paradas ── */
+
+.stop-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stop-picker .result {
+  padding: 8px 10px;
+}

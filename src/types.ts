@@ -106,6 +106,13 @@ export interface Data {
   stamps: Record<string, number>;
 }
 
+/**
+ * Enseña un aviso breve. Con `undo` ofrece «Deshacer» durante unos segundos;
+ * `commit` es lo que ya no tiene vuelta atrás (borrar fotos) y se ejecuta
+ * cuando el aviso se va sin que se haya deshecho.
+ */
+export type Notify = (text: string, actions?: { undo?: () => void; commit?: () => void }) => void;
+
 export interface Position extends LatLng {
   /** Margen de error del GPS, en metros. */
   accuracy?: number;

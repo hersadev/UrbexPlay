@@ -3,6 +3,7 @@ import { CATALOG } from '../catalog';
 import script from '../../google-apps-script/Code.gs?raw';
 import { clearSavedMaps, estimateMb, savedTileCount } from '../offline';
 import { exportBackup, importBackup } from '../store';
+import { localDate } from '../track';
 import { isScriptUrl, type SyncConfig, type SyncStatus } from '../sync';
 import type { Data } from '../types';
 
@@ -196,9 +197,9 @@ export default function Settings({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `urbexplay-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `urbexplay-${localDate()}.zip`;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setNotice('No se ha podido crear la copia.');
     } finally {
@@ -259,8 +260,8 @@ export default function Settings({
       <section>
         <h2>Copia de seguridad</h2>
         <p className="prose">
-          Un fichero con todo lo de este dispositivo: tus lugares, notas, salidas y también las fotos, que no viajan
-          con la sincronización. Importarlo sustituye lo que haya.
+          Un fichero ZIP con todo lo de este dispositivo: tus lugares, notas, salidas y también las fotos y los recorridos, que no
+          viajan con la sincronización. Importarlo sustituye lo que haya.
         </p>
         <div className="row">
           <button className="btn primary" onClick={download} disabled={busy}>
@@ -272,7 +273,7 @@ export default function Settings({
           <input
             ref={fileInput}
             type="file"
-            accept="application/json,.json"
+            accept=".zip,.json,application/zip,application/json"
             hidden
             onChange={(e) => {
               restore(e.target.files?.[0]);

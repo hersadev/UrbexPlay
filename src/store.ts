@@ -1,5 +1,6 @@
 import { del, get, keys, set } from 'idb-keyval';
 import type { Data, LatLng, TrackPoint } from './types';
+import { makeZip, readZip, type ZipFile } from './zip';
 
 const DATA_KEY = 'urbexplay:data';
 const PHOTO_PREFIX = 'urbexplay:foto:';
@@ -105,62 +106,88 @@ export interface Recording {
 export const loadRecording = () => get<Recording>(RECORDING_KEY);
 export const saveRecording = (rec: Recording | null) => (rec ? set(RECORDING_KEY, rec) : del(RECORDING_KEY));
 
-const blobToDataUrl = (blob: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-
+/** Lo que guarda `datos.json` dentro de la copia (y, en las copias antiguas, el fichero entero). */
 interface Backup {
   app: 'urbexplay';
-  version: 1;
+  version: number;
   exportedAt: string;
   data: Data;
-  photos: Record<string, string>;
+  /** Solo en las copias antiguas en JSON: fotos en base64. */
+  photos?: Record<string, string>;
   tracks?: Record<string, TrackPoint[]>;
 }
 
+/**
+ * Copia de seguridad en un ZIP: `datos.json`, las fotos en `fotos/` y los
+ * recorridos en `recorridos/`. Las fotos entran tal cual están guardadas, sin
+ * pasar por texto, así que no hace falta tenerlas todas en memoria.
+ */
 export async function exportBackup(data: Data): Promise<Blob> {
-  const photos: Record<string, string> = {};
-  const tracks: Record<string, TrackPoint[]> = {};
+  const main: Backup = { app: 'urbexplay', version: 2, exportedAt: new Date().toISOString(), data };
+  const files: ZipFile[] = [{ name: 'datos.json', data: new Blob([JSON.stringify(main)]) }];
   for (const key of await keys()) {
     if (typeof key !== 'string') continue;
     if (key.startsWith(PHOTO_PREFIX)) {
       const blob = await get<Blob>(key);
-      if (blob) photos[key.slice(PHOTO_PREFIX.length)] = await blobToDataUrl(blob);
+      if (blob) files.push({ name: `fotos/${key.slice(PHOTO_PREFIX.length)}.jpg`, data: blob });
     } else if (key.startsWith(TRACK_PREFIX)) {
       const points = await get<TrackPoint[]>(key);
-      if (points) tracks[key.slice(TRACK_PREFIX.length)] = points;
+      if (points) {
+        files.push({ name: `recorridos/${key.slice(TRACK_PREFIX.length)}.json`, data: new Blob([JSON.stringify(points)]) });
+      }
     }
   }
-  const backup: Backup = {
-    app: 'urbexplay',
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    data,
-    photos,
-    tracks,
-  };
-  return new Blob([JSON.stringify(backup)], { type: 'application/json' });
+  return makeZip(files);
 }
 
-/** Sustituye todos los datos por los de la copia. Lanza si el fichero no es válido. */
+/**
+ * Sustituye todos los datos por los de la copia (ZIP, o JSON de versiones
+ * anteriores). Lanza si el fichero no es válido.
+ *
+ * Primero se escribe lo nuevo y solo al final se borra lo que sobra: si algo
+ * falla a medias, lo que había sigue en su sitio.
+ */
 export async function importBackup(file: File): Promise<Data> {
-  const backup = JSON.parse(await file.text()) as Partial<Backup>;
-  if (backup.app !== 'urbexplay' || !backup.data) {
-    throw new Error('El fichero no es una copia de UrbexPlay.');
+  const invalid = () => new Error('El fichero no es una copia de UrbexPlay.');
+  const photos = new Map<string, () => Promise<Blob>>();
+  const tracks = new Map<string, () => Promise<TrackPoint[]>>();
+  let backup: Partial<Backup>;
+
+  const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+  if (head[0] === 0x50 && head[1] === 0x4b) {
+    const entries = await readZip(file);
+    const main = entries.get('datos.json');
+    if (!main) throw invalid();
+    backup = JSON.parse(await (await main()).text()) as Partial<Backup>;
+    for (const [name, read] of entries) {
+      const photo = /^fotos\/(.+)\.jpg$/.exec(name);
+      const track = /^recorridos\/(.+)\.json$/.exec(name);
+      if (photo) photos.set(photo[1], async () => new Blob([await read()], { type: 'image/jpeg' }));
+      if (track) tracks.set(track[1], async () => JSON.parse(await (await read()).text()) as TrackPoint[]);
+    }
+  } else {
+    try {
+      backup = JSON.parse(await file.text()) as Partial<Backup>;
+    } catch {
+      throw invalid();
+    }
+    for (const [id, dataUrl] of Object.entries(backup.photos ?? {})) {
+      photos.set(id, async () => (await fetch(dataUrl)).blob());
+    }
+    for (const [id, points] of Object.entries(backup.tracks ?? {})) tracks.set(id, async () => points);
   }
+  if (backup.app !== 'urbexplay' || !backup.data) throw invalid();
   const data = withStamps({ ...emptyData(), ...backup.data });
-  for (const key of await keys()) {
-    if (typeof key === 'string' && (key.startsWith(PHOTO_PREFIX) || key.startsWith(TRACK_PREFIX))) await del(key);
-  }
-  for (const [id, points] of Object.entries(backup.tracks ?? {})) await set(TRACK_PREFIX + id, points);
-  for (const [id, dataUrl] of Object.entries(backup.photos ?? {})) {
-    const blob = await (await fetch(dataUrl)).blob();
-    await set(PHOTO_PREFIX + id, blob);
-  }
+
+  for (const [id, read] of photos) await set(PHOTO_PREFIX + id, await read());
+  for (const [id, read] of tracks) await set(TRACK_PREFIX + id, await read());
   await saveData(data);
+  for (const key of await keys()) {
+    if (typeof key !== 'string') continue;
+    const stale =
+      (key.startsWith(PHOTO_PREFIX) && !photos.has(key.slice(PHOTO_PREFIX.length))) ||
+      (key.startsWith(TRACK_PREFIX) && !tracks.has(key.slice(TRACK_PREFIX.length)));
+    if (stale) await del(key);
+  }
   return data;
 }

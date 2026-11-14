@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { isCatalogId } from '../catalog';
 import { distanceKm, formatKm } from '../geo';
+import { normalize } from '../text';
 import { TYPE_META, TYPES, type LatLng, type Place, type PlaceType, type Status } from '../types';
 
 interface Props {
@@ -15,12 +16,6 @@ interface Props {
   /** Informa de los lugares que pasan el filtro, para pintar solo esos en el mapa. */
   onVisible: (places: Place[]) => void;
 }
-
-const normalize = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
 
 const RADII = [0, 25, 50, 100, 200];
 
