@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CATALOG, isCatalogId, isOriginal } from './catalog';
 import {
   emptyData,
@@ -633,6 +633,21 @@ export default function App() {
 
   const panelHidden = tab === 'mapa' || picking;
 
+  // Cada pantalla nueva se abre desde arriba; al volver atrás se recupera por dónde iba.
+  const panel = useRef<HTMLElement>(null);
+  const scrolls = useRef(new Map<string, number>());
+  const shown = useRef({ hash: nav.hash, depth: nav.depth });
+  useLayoutEffect(() => {
+    const el = panel.current;
+    const prev = shown.current;
+    shown.current = { hash: nav.hash, depth: nav.depth };
+    if (!el || prev.hash === nav.hash) return;
+    // El visor de fotos y el punto del mapa se abren sobre la pantalla, sin moverla.
+    const overlay = /\/(foto|situar)$/.test(nav.hash);
+    if (nav.depth < prev.depth) el.scrollTop = scrolls.current.get(nav.hash) ?? 0;
+    else if (!overlay) el.scrollTop = 0;
+  }, [nav.hash, nav.depth]);
+
   return (
     <div className="app" data-panel={panelHidden ? 'off' : 'on'}>
       <nav className="nav" aria-label="Secciones">
@@ -654,7 +669,12 @@ export default function App() {
         ))}
       </nav>
 
-      <main className="panel" hidden={panelHidden}>
+      <main
+        className="panel"
+        hidden={panelHidden}
+        ref={panel}
+        onScroll={(e) => scrolls.current.set(shown.current.hash, e.currentTarget.scrollTop)}
+      >
         {importing ? (
           <ImportPlaces places={places} onImport={importPlaces} onCancel={() => nav.back(paths.tab('lugares'))} />
         ) : editing ? (

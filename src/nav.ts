@@ -128,7 +128,8 @@ function settle() {
 
 const read = () => {
   settle();
-  return { hash: location.hash, from: depth() > 0 ? (entry()?.from ?? '') : '' };
+  // `depth`: cuántas pantallas hay por debajo; si baja, es que se ha vuelto atrás.
+  return { hash: location.hash, from: depth() > 0 ? (entry()?.from ?? '') : '', depth: depth() };
 };
 
 export function useNav() {
@@ -157,5 +158,5 @@ export function useNav() {
     [go],
   );
 
-  return { hash: loc.hash, from: loc.from, route: parseRoute(loc.hash), go, back };
+  return { hash: loc.hash, from: loc.from, depth: loc.depth, route: parseRoute(loc.hash), go, back };
 }
