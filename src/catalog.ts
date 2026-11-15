@@ -1612,6 +1612,176 @@ export const CATALOG: Place[] = [
     }),
   },
 
+  {
+    id: 'lavadero-roberto',
+    name: 'Lavadero Roberto',
+    type: 'industrial',
+    lat: 37.58824,
+    lng: -0.8468,
+    town: 'La Unión (Portmán)',
+    province: 'Murcia',
+    summary: 'La gran planta de lavado de mineral que colmató la bahía de Portmán, hoy una mole oscura y vacía sobre el pueblo.',
+    history:
+      'Lavadero de flotación de la compañía Peñarroya, abierto en 1957 y ampliado hasta alcanzar su plena capacidad en 1966; llegó a considerarse el mayor de Europa en su género. En sus cuatro grandes naves se molía el mineral, se separaban con reactivos el plomo, el cinc y las piritas, y se bombeaban los estériles a la bahía. El vertido al mar se le denegó en 1954 y 1957 y se autorizó en 1958, primero a 400 m de la costa y luego a menos distancia; el Supremo dio la razón a la empresa en 1971 pese a las protestas de los vecinos y del Ayuntamiento, a las que Greenpeace se sumó en 1980. Se calcula que acabaron en la bahía entre 70 y 315 millones de toneladas de residuos. La producción cesó en 1988 y los vertidos se dan por terminados hacia 1990.',
+    legend: '',
+    sources: [
+      {
+        title: 'Alicante Today: Lavadero Roberto in Portmán',
+        url: 'https://alicantetoday.com/lavadero-roberto-in-portmán_24098-a.html',
+      },
+      {
+        title: 'Ó. González Vergara: Portmán 1950-2015, historia reciente de un paisaje industrial costero (Universidad de Murcia)',
+        url: 'https://um.es/arqueologia/wp-content/uploads/2016/01/10-Oscar-Gonzalez-Vergara-Portmán-1950-2015-Historia-reciente-de-un-paisaje-industrial-costero.pdf',
+      },
+    ],
+    practical: practical({
+      state: 'Abandonado y muy deteriorado; es el edificio más grande de Portmán.',
+      access:
+        'Queda a la derecha de la carretera que sale de Portmán hacia Atamaría y La Manga Club, antes de los desvíos a la playa y a la batería de Cenizas. Se ve bien desde fuera.',
+      ownership: 'privada',
+      difficulty: 2,
+      risks: 'Estructuras industriales inestables y suelos contaminados por metales pesados. No entrar.',
+    }),
+  },
+  {
+    id: 'fabrica-luz-hispania',
+    name: 'Fábrica de la Luz Hispania',
+    type: 'industrial',
+    lat: 37.61389,
+    lng: -0.99457,
+    town: 'Cartagena',
+    province: 'Murcia',
+    summary: 'Central eléctrica de 1900 en ladrillo visto, una de las mejores obras eclécticas del arquitecto Oliver.',
+    history:
+      'La compañía Hispania levantó en 1900 esta fábrica de fluido eléctrico con proyecto de Francisco de Paula Oliver Rolandi. Tenía seis grandes máquinas de vapor que sumaban 5.000 caballos y dos altas chimeneas de ladrillo, hoy derribadas. En 1994 se incoó expediente para declararla bien de interés cultural con categoría de monumento. Los estudios sobre las fábricas de luz de la cuenca del Segura la citan como el paso a la generación eléctrica a gran escala.',
+    legend: '',
+    sources: [
+      {
+        title: 'BORM: incoación de expediente de bien de interés cultural (1994)',
+        url: 'https://www.borm.es/services/anuncio/531961/pdf',
+      },
+      {
+        title: 'Griñán y Palazón: las fábricas de luz de la Región de Murcia (Apuntes, Univ. Javeriana)',
+        url: 'https://revistas.javeriana.edu.co/index.php/revApuntesArq/article/download/10669/8837',
+      },
+    ],
+    practical: practical({
+      state: 'Sin confirmar: el recinto sigue ligado a la red eléctrica y no consta el estado del interior.',
+      access: 'En la alameda de San Antón, en plena ciudad. Solo se ve la fachada desde la calle.',
+      ownership: 'privada',
+      difficulty: 1,
+      risks: 'Instalación eléctrica: no entrar.',
+    }),
+  },
+  {
+    id: 'chimenea-penarroya',
+    name: 'Chimeneas de la fundición de Santa Lucía',
+    type: 'industrial',
+    lat: 37.58667,
+    lng: -0.97184,
+    town: 'Cartagena (Santa Lucía)',
+    province: 'Murcia',
+    summary: 'Las chimeneas de la fundición de plomo de Peñarroya trepan por la ladera del monte de San Julián.',
+    history:
+      'En Santa Lucía, junto a la fábrica de vidrio, funcionó la fundición de plomo de Peñarroya. Los humos se sacaban monte arriba hasta las chimeneas que quedan en la ladera de San Julián. En 2024 la Comunidad Autónoma abrió los expedientes para proteger como bienes catalogados la chimenea de Peñarroya y la chimenea II de la antigua fundición de Santa Lucía.',
+    legend: '',
+    sources: [
+      {
+        title: 'BORM: procedimiento de declaración de bien catalogado de la chimenea de Peñarroya (2024)',
+        url: 'https://www.borm.es/services/anuncio/ano/2024/numero/3035/pdf',
+      },
+    ],
+    practical: practical({
+      state: 'En pie, sin uso y sin restaurar.',
+      access: 'En la ladera del monte de San Julián, sobre el barrio de Santa Lucía. Se ven desde el barrio y desde la subida al castillo.',
+      ownership: 'desconocida',
+      difficulty: 2,
+      risks: 'Ladera suelta y fábrica de ladrillo sin consolidar; suelos de antigua fundición.',
+    }),
+  },
+  {
+    id: 'chimeneas-molina',
+    name: 'Chimeneas conserveras de Molina de Segura',
+    type: 'industrial',
+    lat: 38.05118,
+    lng: -1.21419,
+    town: 'Molina de Segura',
+    province: 'Murcia',
+    summary: 'Siete chimeneas de ladrillo, lo único que queda de las fábricas de conservas y cerámica de Molina.',
+    history:
+      'Al cerrar las conserveras de la Vega Media se derribaron las naves y solo se indultó la chimenea. En Molina sobreviven siete: la de Prieto en San Roque y la de El Pelícano, de principios del siglo XX, ambas junto al jardín del Huerto Fayrén; la de Maximino Moreno, con el nombre de la fábrica escrito en ladrillo y restaurada en 2011 al construirse el museo de la muralla (MUDEM); la de Hernández Pérez, «La Molinera», la más ornamentada, hoy rodeada de bloques de pisos; la de Industrias Prieto en Fátima, junto a la acequia Subirana, en la que se puede entrar para ver los conductos de humos; y dos de fábricas de ladrillos, la de la Cerámica o Coresa, en la entrada desde Murcia por la N-301, y la de la plaza de la Cerámica.',
+    legend: '',
+    sources: [
+      {
+        title: 'Murcia Today: the industrial chimneys of Molina de Segura',
+        url: 'https://m.murciatoday.com/the-industrial-chimneys-of-molina-de-segura_122266-a.html',
+      },
+      {
+        title: 'Universidad de Murcia: propuesta de una ruta de la industria conservera en la Región de Murcia',
+        url: 'https://revistas.um.es/imafronte/article/view/42111',
+      },
+    ],
+    practical: practical({
+      state: 'Las siete siguen en pie, casi todas aisladas en plazas, jardines o solares.',
+      access: 'El punto marca la de Maximino Moreno, junto al MUDEM. Las demás se recorren a pie o en coche por el casco urbano.',
+      ownership: 'publica',
+      difficulty: 1,
+      risks: '',
+    }),
+  },
+  {
+    id: 'castillo-don-mario',
+    name: 'Castillo de Don Mario',
+    type: 'edificio',
+    lat: 38.11559,
+    lng: -1.28811,
+    town: 'Archena',
+    province: 'Murcia',
+    summary: 'Palomar modernista con aires de castillo, vacío en lo alto de un cerro frente a Archena.',
+    history:
+      'Nació como gran palomar de los Fontes, una de las familias más ricas de Murcia, que después lo cedieron a la familia del médico Mario Spreáfico. Nacido en Argelia en 1883 e hijo de un médico del balneario, Spreáfico fue muy querido por atender a los pobres y Archena lo nombró hijo predilecto. Fue el candidato republicano más votado en las municipales de 1931 y en 1936 presidía la Confederación Hidrográfica del Segura; la Guerra Civil acabó con su carrera y le costó una larga condena de cárcel. A principios de los años 2000 el edificio se reconvirtió en oficinas.',
+    legend: '',
+    sources: [
+      {
+        title: 'Murcia Today: the Castillo de Don Mario in Archena',
+        url: 'https://m.murciatoday.com/the-castillo-de-don-mario-in-archena_124991-a.html',
+      },
+    ],
+    practical: practical({
+      state: 'Vacío y abandonado tras su etapa como oficinas.',
+      access: 'En un cerro al otro lado del Segura respecto al centro de Archena, junto a la carretera MU-522. No se visita por dentro.',
+      ownership: 'privada',
+      difficulty: 1,
+      risks: '',
+    }),
+  },
+  {
+    id: 'panteon-pico-crespo',
+    name: 'Panteón de Manuel Picó y Juan Crespo',
+    type: 'patrimonio',
+    lat: 37.58873,
+    lng: -0.95655,
+    approx: true,
+    town: 'Cartagena (Santa Lucía)',
+    province: 'Murcia',
+    summary: 'Panteón de 1874 con un reloj de arena en su interior, cayéndose a trozos en el cementerio de Los Remedios.',
+    history:
+      'Lo proyectó en 1874 el arquitecto Carlos Mancha Escobar, autor de otros panteones del cementerio de Nuestra Señora de los Remedios. Es conocido por la originalidad de sus motivos y por el reloj de arena del interior del mausoleo. El plan general de Cartagena le dio en 1987 el grado 1 de protección. Hispania Nostra lo incluyó en su Lista Roja: partes del friso y de la cornisa están a punto de caer, los adornos están desportillados y una columna se ha deshecho por completo.',
+    legend: '',
+    sources: [
+      {
+        title: 'Murcia Today: monumentos de Murcia en la Lista Roja (2022)',
+        url: 'https://m.murciatoday.com/4-historic-monuments-and-heritage-sites-in-murcia-at-risk-of-disappearing_1737148-a.html',
+      },
+    ],
+    practical: practical({
+      state: 'Muy deteriorado, con elementos a punto de desprenderse.',
+      access: 'Dentro del cementerio de Los Remedios, en horario de apertura. El punto marca el cementerio, no el panteón.',
+      ownership: 'privada',
+      difficulty: 1,
+      risks: 'Desprendimientos de la cornisa: no acercarse a la fachada.',
+    }),
+  },
   // ───────────── Fuera de Murcia ─────────────
   {
     id: 'preventorio-aguas-busot',
@@ -2395,6 +2565,347 @@ export const CATALOG: Place[] = [
       ownership: 'publica',
       difficulty: 1,
       risks: 'Muros sin consolidar.',
+    }),
+  },
+  {
+    id: 'sanatorio-torremanzanas',
+    name: 'Sanatorio de Torremanzanas',
+    type: 'edificio',
+    lat: 38.63368,
+    lng: -0.41163,
+    town: 'Torremanzanas',
+    province: 'Alicante',
+    summary: 'Sanatorio antituberculoso de 1926 en la sierra del Rentonar, a 965 m, reducido a una planta en ruinas.',
+    history:
+      'Lo construyó en 1926 la Compañía de Jesús. Fue casa de reposo, colonia infantil de vacaciones y hospital militar durante la Guerra Civil, y funcionó como sanatorio antituberculoso hasta 1963, cuando la enfermedad se dio por controlada y quedó abandonado. La Diputación lo compró en 1999 por 96.161 euros para convertirlo en alojamiento turístico, proyecto que no se ha hecho. El vandalismo hundió parte de las cubiertas y de los muros, y en 2012 se derribó la planta superior por su mal estado. Desde el patio aún se distingue la sala roja donde se revelaban las radiografías.',
+    legend:
+      'Es destino habitual de los aficionados a lo paranormal, que suben a grabar psicofonías. La prensa local que lo ha contado da por inventadas buena parte de esas historias.',
+    sources: [
+      {
+        title: 'Jávea Connect: the Sanatorium of Torremanzanas (2021)',
+        url: 'https://www.javeaconnect.co.uk/?p=14750',
+      },
+      {
+        title: 'Valencia Bonita: lugares aterradores de la Comunitat Valenciana',
+        url: 'https://www.valenciabonita.es/2017/10/31/lugares-aterradores-de-la-comunitat-valenciana/',
+      },
+    ],
+    practical: practical({
+      state: 'En ruina: sin planta superior, con cubiertas y muros caídos.',
+      access: 'En la sierra del Rentonar, junto a la carretera CV-780. El acceso es incómodo y no consta que la entrada esté permitida.',
+      ownership: 'publica',
+      difficulty: 2,
+      risks: 'Forjados y muros inestables.',
+    }),
+  },
+  {
+    id: 'minas-san-anton-orihuela',
+    name: 'Complejo minero de San Antón',
+    type: 'industrial',
+    lat: 38.0925,
+    lng: -0.9385,
+    approx: true,
+    town: 'Orihuela',
+    province: 'Alicante',
+    summary: 'Mina de cinabrio con uno de los dos únicos hornos Bustamante de mercurio que quedan en el mundo.',
+    history:
+      'El complejo, de finales del siglo XIX, está en el monte de San Miguel. Su pieza principal es el horno Santa Matilde, de mampostería y ladrillo, donde se calcinaba el cinabrio para obtener mercurio: se inauguró el 5 de marzo de 1888 con prensa y autoridades, y es uno de los dos hornos de tipo Bustamante que se conservan en el mundo. A su lado está la Casa de los Mineros, edificio auxiliar para los operarios y probablemente almacén del mercurio. La explotación cerró a principios del siglo XX. Hispania Nostra lo incluyó en la Lista Roja en 2019; ese año el Ayuntamiento repuso la puerta de la mina, que había desaparecido, y en 2021 empezó a acondicionar el entorno de la Casa de los Mineros.',
+    legend: '',
+    sources: [
+      {
+        title: 'Grupo Mineralogista de Alicante: mina de cinabrio de Orihuela y horno Santa Matilde',
+        url: 'https://www.gmalicante.org/yacimientos_espanoles/COMUNIDA_VALENCIANA/alicante/HORNO_SANTA_MATILDE/MINA_CINABRIO_ORIHUELA.pdf',
+      },
+      {
+        title: 'Ayuntamiento de Orihuela: reposición de la puerta de la mina (2019)',
+        url: 'https://www.orihuela.es/?p=62786',
+      },
+      {
+        title: 'El Español: el patrimonio en ruinas de Alicante en la Lista Roja (2022)',
+        url: 'https://elespanol.com/alicante/20221121/lista-patrimonio-ruinas-alicante-monumentos-punto-desaparecer/719178133_0.html',
+      },
+    ],
+    practical: practical({
+      state: 'Degradación desigual; la bocamina está cerrada con puerta.',
+      access: 'En la ladera del monte de San Miguel, sobre el barrio de San Antón. El punto es orientativo: hay que localizar el horno sobre el terreno.',
+      ownership: 'publica',
+      difficulty: 2,
+      risks: 'Galerías de mina: no entrar. Los restos de mercurio son tóxicos.',
+    }),
+  },
+  {
+    id: 'molino-ciudad-orihuela',
+    name: 'Molino de la Ciudad',
+    type: 'industrial',
+    lat: 38.07824,
+    lng: -0.97152,
+    town: 'Orihuela',
+    province: 'Alicante',
+    summary: 'Molino harinero sobre el Segura, a las afueras de Orihuela, abandonado y con las cubiertas a punto de caer.',
+    history:
+      'El edificio actual es de finales del siglo XIX o principios del XX y se levantó sobre un molino del siglo XVII que aprovechaba la corriente del Segura. Hispania Nostra lo incluyó en la Lista Roja en diciembre de 2020 por su abandono.',
+    legend: '',
+    sources: [
+      {
+        title: 'Alicante Plaza: Hispania Nostra incluye en la Lista Roja el Molino de la Ciudad',
+        url: 'https://alicanteplaza.es/hispania-nostra-incluye-en-la-lista-roja-del-patrimonio-el-molino-de-la-ciudad-en-orihuela',
+      },
+      {
+        title: 'El Español: el patrimonio en ruinas de Alicante en la Lista Roja (2022)',
+        url: 'https://elespanol.com/alicante/20221121/lista-patrimonio-ruinas-alicante-monumentos-punto-desaparecer/719178133_0.html',
+      },
+    ],
+    practical: practical({
+      state: 'Abandonado y en ruina, con las cubiertas amenazando con caer.',
+      access: 'En el Rincón del Molino, junto al camino de Beniel, aguas arriba de la ciudad.',
+      ownership: 'desconocida',
+      difficulty: 2,
+      risks: 'Cubiertas a punto de hundirse y el río al lado. No entrar.',
+    }),
+  },
+  {
+    id: 'iglesia-san-agustin-orihuela',
+    name: 'Iglesia de San Agustín',
+    type: 'patrimonio',
+    lat: 38.08314,
+    lng: -0.94796,
+    town: 'Orihuela',
+    province: 'Alicante',
+    summary: 'Iglesia conventual del siglo XVIII, cerrada y en ruina desde hace décadas en pleno casco histórico.',
+    history:
+      'Se construyó en la década de 1750 sobre una iglesia anterior. Fue de las primeras entradas de la Lista Roja de Hispania Nostra, en enero de 2008, y en 2022 la prensa la daba por arruinada desde hacía unas tres décadas.',
+    legend: '',
+    sources: [
+      {
+        title: 'El Español: el patrimonio en ruinas de Alicante en la Lista Roja (2022)',
+        url: 'https://elespanol.com/alicante/20221121/lista-patrimonio-ruinas-alicante-monumentos-punto-desaparecer/719178133_0.html',
+      },
+    ],
+    practical: practical({
+      state: 'Cerrada y en ruina.',
+      access: 'En el casco histórico, junto a la plaza del Rodeo. Solo se ve por fuera.',
+      ownership: 'desconocida',
+      difficulty: 1,
+      risks: 'Posibles desprendimientos de fachada.',
+    }),
+  },
+  {
+    id: 'torre-cipres',
+    name: 'Torre y capilla de El Ciprés',
+    type: 'patrimonio',
+    lat: 38.37717,
+    lng: -0.43075,
+    town: 'Alicante (La Condomina)',
+    province: 'Alicante',
+    summary: 'Torre de vigilancia de la huerta de Alicante, con su capilla y los restos de la casa, en completo abandono.',
+    history:
+      'El conjunto, de los siglos XV al XVII, reúne una torre de las que protegían la huerta alicantina de los desembarcos berberiscos, una capilla y la casa de la finca. Es bien de interés cultural. Hispania Nostra lo incluyó en la Lista Roja en diciembre de 2020: sufre vandalismo y la casa casi ha desaparecido.',
+    legend: '',
+    sources: [
+      {
+        title: 'El Español: el patrimonio en ruinas de Alicante en la Lista Roja (2022)',
+        url: 'https://elespanol.com/alicante/20221121/lista-patrimonio-ruinas-alicante-monumentos-punto-desaparecer/719178133_0.html',
+      },
+    ],
+    practical: practical({
+      state: 'Abandonada y vandalizada; la casa está casi perdida.',
+      access: 'En el camino del Ciprés (camí del Xiprer), en la partida de La Condomina.',
+      ownership: 'desconocida',
+      difficulty: 1,
+      risks: 'Muros sin consolidar.',
+    }),
+  },
+  {
+    id: 'torre-reixes',
+    name: 'Torre de Reixes',
+    type: 'militar',
+    lat: 38.46118,
+    lng: -0.33972,
+    town: 'El Campello (Coveta Fumà)',
+    province: 'Alicante',
+    summary: 'Torre vigía del siglo XVI sobre el barranco de Aigües, desmochada, agujereada y con una gran grieta.',
+    history:
+      'También llamada torre del Barranc d\'Aigües. Se levantó a mediados del siglo XVI dentro del plan de la Corona para vigilar la costa frente a los corsarios. Es bien de interés cultural. Entró en la Lista Roja de Hispania Nostra en diciembre de 2020: ha perdido el remate, tiene grandes boquetes y una grieta la recorre.',
+    legend: '',
+    sources: [
+      {
+        title: 'El Español: el patrimonio en ruinas de Alicante en la Lista Roja (2022)',
+        url: 'https://elespanol.com/alicante/20221121/lista-patrimonio-ruinas-alicante-monumentos-punto-desaparecer/719178133_0.html',
+      },
+    ],
+    practical: practical({
+      state: 'Ruinosa: sin remate, con boquetes y agrietada.',
+      access: 'En la Coveta Fumà, cerca de la avenida de América, sobre la desembocadura del barranco de Aigües.',
+      ownership: 'publica',
+      difficulty: 1,
+      risks: 'Desprendimientos: no pegarse a los muros.',
+    }),
+  },
+  {
+    id: 'moli-nou-mutxamel',
+    name: 'Molí Nou',
+    type: 'industrial',
+    lat: 38.44269,
+    lng: -0.46364,
+    approx: true,
+    town: 'Mutxamel',
+    province: 'Alicante',
+    summary: 'Molino hidráulico de la huerta de Alicante que ya figura en planos del siglo XVI.',
+    history:
+      'Aparece dibujado en planos de finales del siglo XVI, dentro del sistema de riego que repartía el agua del río Montnegre por la huerta. Hispania Nostra lo incluyó en la Lista Roja en octubre de 2019: es de propiedad privada, se deteriora y parte de sus elementos se han tapado con hormigón.',
+    legend: '',
+    sources: [
+      {
+        title: 'El Español: el patrimonio en ruinas de Alicante en la Lista Roja (2022)',
+        url: 'https://elespanol.com/alicante/20221121/lista-patrimonio-ruinas-alicante-monumentos-punto-desaparecer/719178133_0.html',
+      },
+    ],
+    practical: practical({
+      state: 'Deteriorado, con partes cubiertas de hormigón.',
+      access: 'El punto marca la partida del Molí Nou, no el molino, que hay que localizar junto al cauce.',
+      ownership: 'privada',
+      difficulty: 1,
+      risks: 'Propiedad privada: verlo desde fuera.',
+    }),
+  },
+  {
+    id: 'taller-carruajes-beneixama',
+    name: 'Taller de carruajes San Antonio',
+    type: 'industrial',
+    lat: 38.70088,
+    lng: -0.76414,
+    approx: true,
+    town: 'Beneixama',
+    province: 'Alicante',
+    summary: 'Antiguo taller de carros y carruajes, cerrado y castigado por las gotas frías.',
+    history:
+      'El taller nació a mediados del siglo XIX y se trasladó al edificio actual en la primera década del XX. Hispania Nostra lo incluyó en la Lista Roja en junio de 2021 por su estado de abandono, que las gotas frías de los últimos años han acelerado.',
+    legend: '',
+    sources: [
+      {
+        title: 'El Español: el patrimonio en ruinas de Alicante en la Lista Roja (2022)',
+        url: 'https://elespanol.com/alicante/20221121/lista-patrimonio-ruinas-alicante-monumentos-punto-desaparecer/719178133_0.html',
+      },
+    ],
+    practical: practical({
+      state: 'Abandonado y en deterioro.',
+      access: 'En el casco urbano de Beneixama. El punto marca el pueblo: hay que preguntar por el taller.',
+      ownership: 'privada',
+      difficulty: 1,
+      risks: 'Propiedad privada: verlo desde la calle.',
+    }),
+  },
+  {
+    id: 'fundicion-san-andres-adra',
+    name: 'Fundición San Andrés y torre de los Perdigones',
+    type: 'industrial',
+    lat: 36.74836,
+    lng: -3.02229,
+    town: 'Adra',
+    province: 'Almería',
+    summary: 'Restos de una de las primeras fundiciones de plomo de España, con su torre para fabricar perdigones.',
+    history:
+      'La Casa Rein y Compañía levantó la fundición en 1822, un complejo pionero de cuatro hectáreas desde el que se embarcaba hacia Europa el plomo de la sierra de Gádor; en 1824 se instalaron hornos ingleses de carbón. En 1837, con el plomo a la baja, la compró el empresario malagueño Manuel Agustín Heredia, que trajo la tecnología más avanzada de su tiempo y amplió la producción a perdigones, balas y, más tarde, plata. En la torre se dejaba caer el plomo fundido a través de cribas de distinto calibre para que se enfriara en forma de perdigón. La actividad decayó al agotarse las minas de Gádor. Quedan la torre de los Perdigones, la Fabriquilla del Vinagre, parte de la cámara de condensación de humos y la torre del Humo.',
+    legend: '',
+    sources: [
+      {
+        title: 'My Almería: Saint Andrew lead smelting factory (Adra)',
+        url: 'https://myalmeria.com/en/adra/info/649-what-to-visit/2292-st-andrew-factory',
+      },
+      {
+        title: 'Turismo de Andalucía: torre de los Perdigones',
+        url: 'https://www.andalucia.org/en/adra-cultural-tourism-torre-de-los-perdigones',
+      },
+    ],
+    practical: practical({
+      state: 'La torre de los Perdigones está restaurada y acoge la oficina de turismo; el resto son ruinas consolidadas a medias.',
+      access: 'En la calle Fundición, en el casco urbano, dentro de un parque público.',
+      ownership: 'publica',
+      difficulty: 1,
+      risks: '',
+    }),
+  },
+  {
+    id: 'azucarera-adra',
+    name: 'Azucarera de Adra',
+    type: 'industrial',
+    lat: 36.74734,
+    lng: -2.99791,
+    town: 'Adra (Puente del Río)',
+    province: 'Almería',
+    summary: 'La última fábrica de azúcar de caña de Adra, con sus chimeneas y la alcoholera.',
+    history:
+      'Se construyó en 1909 y empezó a producir al año siguiente, como cooperativa de propietarios y labradores de la vega creada tras el cierre de la fábrica de San Nicolás. Cerró a comienzos de los años setenta (1972 o 1973, según la fuente) por la falta de caña y de remolacha, y con ella acabaron cuatro siglos de azúcar en Adra. En 1986 se hundió la cubierta de la nave central y cayó parte de la fachada principal. En 2003 el Ayuntamiento aprobó restaurar la fábrica y la alcoholera para un centro de empresas y una escuela taller. Se conservan la alcoholera, la casa del químico, el molino y las chimeneas.',
+    legend: '',
+    sources: [
+      {
+        title: 'My Almería: sugar factory (Adra)',
+        url: 'https://myalmeria.com/en/adra/info/649-what-to-visit/2293-sugar-factory',
+      },
+    ],
+    practical: practical({
+      state: 'Sin confirmar hasta dónde llegó la restauración aprobada en 2003: parte puede estar rehabilitada y parte en ruina.',
+      access: 'En la barriada de Puente del Río, al este de Adra, junto a la calle Azucarera.',
+      ownership: 'publica',
+      difficulty: 1,
+      risks: 'Naves con cubiertas hundidas.',
+    }),
+  },
+  {
+    id: 'cargadero-agua-amarga',
+    name: 'Cargadero de mineral de Agua Amarga',
+    type: 'industrial',
+    lat: 36.93914,
+    lng: -1.92947,
+    town: 'Níjar (Agua Amarga)',
+    province: 'Almería',
+    summary: 'Final de un ferrocarril minero de 36 km: tolvas, edificios en ruina y un plano inclinado sobre el acantilado.',
+    history:
+      'La Compañía Minera de Sierra Alhamilla abrió en 1896 un ferrocarril de 36 km, con túneles y puentes, para bajar el hierro de Lucainena de las Torres hasta Agua Amarga, elegida por su bahía resguardada. El mineral pasaba de los vagones a un embarcadero de hierro en voladizo y de ahí a los barcos; los suministros de la mina se desembarcaban en la playa y se subían al tren por una rampa muy empinada, con vagonetas tiradas por cable desde una máquina fija. Las ventas cayeron tras la Primera Guerra Mundial, en la Guerra Civil los trabajadores tomaron la mina y la producción se paró. Reabrió después, pero en 1942 se cargó el último vapor, el Bartolo, y poco más tarde se desmontaron las vías y las instalaciones.',
+    legend: '',
+    sources: [
+      {
+        title: 'Andalucia.com: Agua Amarga mineral loader',
+        url: 'https://andalucia.com/province/almeria/agua-amarga/mineral-loader',
+      },
+    ],
+    practical: practical({
+      state: 'En ruina: quedan edificios sin cubierta, las explanaciones de las vías y el antiguo almacén de carbón en la playa.',
+      access: 'En el cabo que cierra la bahía, unos 2 km al norte de Agua Amarga. Se llega a pie; las explanaciones bajan por un barranco de laderas muy pendientes.',
+      ownership: 'desconocida',
+      difficulty: 2,
+      risks: 'Acantilados y barranco sin proteger, muros inestables.',
+      gear: 'Calzado de monte y agua: no hay sombra.',
+    }),
+  },
+  {
+    id: 'cable-ingles',
+    name: 'Cable Inglés',
+    type: 'industrial',
+    lat: 36.83167,
+    lng: -2.46374,
+    town: 'Almería',
+    province: 'Almería',
+    summary: 'Cargadero de mineral de hierro y acero que entra en el mar desde la playa de las Almadrabillas.',
+    history:
+      'Lo proyectó The Alquife Mines and Railway Company Limited, la compañía británica que explotaba las minas de hierro de Alquife (Granada). Se construyó entre 1902 y 1904 bajo la dirección del ingeniero escocés John Ernest Harrison, con acero traído de Escocia, y se inauguró el 27 de abril de 1904. Los trenes subían cargados y vaciaban el mineral por gravedad en las bodegas de los barcos. Dejó de funcionar en 1970 y pasó décadas oxidándose. La Junta de Andalucía lo declaró bien de interés cultural en 1998 y la Autoridad Portuaria lo ha restaurado en dos fases.',
+    legend: '',
+    sources: [
+      {
+        title: 'Directo al Paladar: Almería y uno de los mayores patrimonios industriales y mineros de España',
+        url: 'https://www.directoalpaladar.com/viajes/no-esta-norte-almeria-uno-mayores-patrimonios-industriales-mineros-espana',
+      },
+      {
+        title: 'Portus: restauración del Cable Inglés en el puerto de Almería',
+        url: 'https://portusonline.org/restoration-of-the-cable-ingles-in-the-port-of-almeria/',
+      },
+    ],
+    practical: practical({
+      state: 'Restaurado: es un paseo peatonal sobre el mar.',
+      access: 'Junto al muelle de Levante, en la playa de las Almadrabillas. Entrada libre todos los días.',
+      ownership: 'publica',
+      difficulty: 1,
+      risks: '',
     }),
   },
 ];
