@@ -157,18 +157,11 @@ export default function MapView({
   }, []);
 
   useEffect(() => {
-    markers.current.clearLayers();
-    for (const place of places) {
-      const meta = TYPE_META[place.type];
-      const status = statuses[place.id] ?? 'ninguno';
-      const icon = L.divIcon({
-        className: '',
-        html: `<span class="pin ${status}" style="--c:${meta.color}">${meta.glyph}</span>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        popupAnchor: [0, -14],
-      });
+    const m = map.current;
+    if (!m) return;
 
+    const popupFor = (place: Place) => {
+      const meta = TYPE_META[place.type];
       const popup = document.createElement('div');
       popup.className = 'popup';
       const kind = document.createElement('span');
@@ -183,9 +176,103 @@ export default function MapView({
       open.textContent = 'Ver ficha';
       open.onclick = () => live.current.onOpen(place.id);
       popup.append(kind, title, where, open);
+      return popup;
+    };
 
-      L.marker([place.lat, place.lng], { icon, title: place.name }).bindPopup(popup).addTo(markers.current);
-    }
+    /** Desplegable con los lugares de un grupo, para elegir uno. */
+    const groupPopup = (members: Place[]) => {
+      const popup = document.createElement('div');
+      popup.className = 'popup';
+      const head = document.createElement('strong');
+      head.textContent = `${members.length} lugares aquí`;
+      const list = document.createElement('div');
+      list.className = 'popup-list';
+      for (const place of [...members].sort((x, y) => x.name.localeCompare(y.name, 'es'))) {
+        const meta = TYPE_META[place.type];
+        const item = document.createElement('button');
+        item.className = 'popup-item';
+        const dot = document.createElement('span');
+        dot.className = 'popup-dot';
+        dot.style.background = meta.color;
+        dot.textContent = meta.glyph;
+        const text = document.createElement('span');
+        const name = document.createElement('strong');
+        name.textContent = place.name;
+        const town = document.createElement('small');
+        town.textContent = place.town;
+        text.append(name, town);
+        item.append(dot, text);
+        item.onclick = () => live.current.onOpen(place.id);
+        list.append(item);
+      }
+      popup.append(head, list);
+      const bounds = L.latLngBounds(members.map((p) => [p.lat, p.lng] as L.LatLngTuple));
+      // Si no están en el mismo punto, se puede acercar el mapa hasta separarlos.
+      if (bounds.getNorthEast().distanceTo(bounds.getSouthWest()) > 15) {
+        const zoom = document.createElement('button');
+        zoom.className = 'btn small';
+        zoom.textContent = 'Acercar el mapa';
+        zoom.onclick = () => {
+          m.closePopup();
+          m.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+        };
+        popup.append(zoom);
+      }
+      return popup;
+    };
+
+    // Los marcadores que quedarían uno encima de otro se juntan en uno solo con la cuenta.
+    const render = () => {
+      markers.current.clearLayers();
+      const zoom = m.getZoom();
+      // Distancia en pantalla (px) por debajo de la cual dos marcadores no se pueden pulsar bien.
+      const near = zoom <= 8 ? 22 : zoom <= 10 ? 28 : 34;
+      const groups: { at: L.Point; members: Place[] }[] = [];
+      for (const place of places) {
+        const at = m.project([place.lat, place.lng], zoom);
+        const group = groups.find((g) => g.at.distanceTo(at) < near);
+        if (group) group.members.push(place);
+        else groups.push({ at, members: [place] });
+      }
+
+      for (const { members } of groups) {
+        if (members.length === 1) {
+          const place = members[0];
+          const meta = TYPE_META[place.type];
+          const status = statuses[place.id] ?? 'ninguno';
+          const icon = L.divIcon({
+            className: '',
+            html: `<span class="pin ${status}" style="--c:${meta.color}">${meta.glyph}</span>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+            popupAnchor: [0, -14],
+          });
+          L.marker([place.lat, place.lng], { icon, title: place.name })
+            .bindPopup(popupFor(place))
+            .addTo(markers.current);
+          continue;
+        }
+        const lat = members.reduce((sum, p) => sum + p.lat, 0) / members.length;
+        const lng = members.reduce((sum, p) => sum + p.lng, 0) / members.length;
+        const icon = L.divIcon({
+          className: '',
+          html: `<span class="pin group">${members.length}</span>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
+          popupAnchor: [0, -16],
+        });
+        L.marker([lat, lng], { icon, title: `${members.length} lugares` })
+          .bindPopup(groupPopup(members), { maxHeight: 280 })
+          .addTo(markers.current);
+      }
+    };
+
+    render();
+    // Al cambiar el zoom cambia qué marcadores se pisan.
+    m.on('zoomend', render);
+    return () => {
+      m.off('zoomend', render);
+    };
   }, [places, statuses]);
 
   useEffect(() => {

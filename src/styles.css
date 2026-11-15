@@ -511,6 +511,14 @@ textarea.input {
   border-color: #e0a341;
   color: #e0a341;
 }
+.pin.group {
+  width: 34px;
+  height: 34px;
+  background: var(--accent);
+  border-color: #fff;
+  color: var(--accent-ink);
+  font: 700 14px/1 var(--sans);
+}
 .pin.static {
   flex: none;
   box-shadow: none;
@@ -540,6 +548,48 @@ textarea.input {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #6e6555;
+}
+.popup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.popup-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: #f1ebdd;
+  color: #2a241b;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.popup-item:hover {
+  background: #e7dec9;
+}
+.popup-item span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.popup-item small {
+  color: #6e6555;
+}
+.popup-dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 13px;
 }
 .popup .btn {
   margin-top: 6px;
@@ -1156,11 +1206,11 @@ progress {
 .map .pin {
   transition: transform 0.15s;
 }
-.map[data-zoom='medio'] .pin:not(.mark):not(.start) {
+.map[data-zoom='medio'] .pin:not(.mark):not(.start):not(.group) {
   transform: scale(0.55);
   font-size: 0;
 }
-.map[data-zoom='lejos'] .pin:not(.mark):not(.start) {
+.map[data-zoom='lejos'] .pin:not(.mark):not(.start):not(.group) {
   transform: scale(0.4);
   font-size: 0;
 }
