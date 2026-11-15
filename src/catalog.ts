@@ -2918,7 +2918,7 @@ export const isCatalogId = (id: string) => BY_ID.has(id);
 const point = (p: { lat: number; lng: number } | undefined) => (p ? `${p.lat.toFixed(5)},${p.lng.toFixed(5)}` : '');
 const content = (p: Place) =>
   JSON.stringify([
-    point(p.parkingAt), point(p.entryAt),
+    point(p.parkingAt), point(p.entryAt), p.checked ?? '',
     p.name, p.type, p.lat, p.lng, !!p.approx, p.town, p.province, p.summary, p.history, p.legend,
     sourcesToText(p.sources), p.practical.state, p.practical.access, p.practical.ownership,
     p.practical.difficulty, p.practical.risks, p.practical.parking, p.practical.gear,

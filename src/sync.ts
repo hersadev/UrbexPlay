@@ -1,5 +1,6 @@
 import { get, set } from 'idb-keyval';
 import { CATALOG } from './catalog';
+import { isDate } from './safety';
 import { sourcesToText, textToSources } from './sources';
 import {
   TYPES,
@@ -88,6 +89,7 @@ const placeRow = (p: Place): Row => ({
   equipo: p.practical.gear,
   aparcamiento_coords: pointToText(p.parkingAt),
   entrada_coords: pointToText(p.entryAt),
+  comprobado: p.checked ?? '',
 });
 
 function toTables(data: Data): Tables {
@@ -140,8 +142,9 @@ function textToPoint(text: string): LatLng | undefined {
 }
 
 /**
- * Una hoja con un script anterior no tiene las columnas de aparcamiento y
- * entrada: en ese caso se conserva lo que hubiera en este dispositivo (`previous`).
+ * Una hoja con un script anterior no tiene las columnas de aparcamiento, de
+ * entrada ni la de «comprobado»: en ese caso se conserva lo que hubiera en
+ * este dispositivo (`previous`).
  */
 function rowToPlace(row: Row, previous?: Place): Place | null {
   const lat = toNumber(row.lat);
@@ -154,6 +157,8 @@ function rowToPlace(row: Row, previous?: Place): Place | null {
   const difficulty = Math.round(toNumber(row.dificultad));
   const parkingAt = row.aparcamiento_coords === undefined ? previous?.parkingAt : textToPoint(row.aparcamiento_coords);
   const entryAt = row.entrada_coords === undefined ? previous?.entryAt : textToPoint(row.entrada_coords);
+  const checked =
+    row.comprobado === undefined ? previous?.checked : isDate(row.comprobado.trim()) ? row.comprobado.trim() : undefined;
   return {
     id: row.id.trim(),
     name,
@@ -178,6 +183,7 @@ function rowToPlace(row: Row, previous?: Place): Place | null {
     },
     ...(parkingAt && { parkingAt }),
     ...(entryAt && { entryAt }),
+    ...(checked && { checked }),
     custom: true,
   };
 }

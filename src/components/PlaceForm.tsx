@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatCoords } from '../geo';
 import { parseLocation } from '../import';
+import { isDate } from '../safety';
+import { localDate } from '../track';
 import { reverseGeocode, searchOsm, searchWikipedia, type SearchResult } from '../search';
 import { sourcesToText, textToSources } from '../sources';
 import { uid } from '../store';
@@ -49,6 +51,7 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
   );
   const [parkingAt, setParkingAt] = useState(place?.parkingAt ? formatCoords(place.parkingAt) : '');
   const [entryAt, setEntryAt] = useState(place?.entryAt ? formatCoords(place.entryAt) : '');
+  const [checked, setChecked] = useState(place?.checked ?? '');
   /** Campo que recibirá el punto que se elija en el mapa. */
   const pickFor = useRef<'lugar' | 'aparcamiento' | 'entrada'>('lugar');
   const [coordsTouched, setCoordsTouched] = useState(false);
@@ -212,6 +215,7 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
       practical,
       ...(parking && { parkingAt: parking }),
       ...(entry && { entryAt: entry }),
+      ...(isDate(checked) && { checked }),
     });
   };
 
@@ -425,6 +429,30 @@ export default function PlaceForm({ place, picked, userPos, onPick, onSave, onCa
       <label className="field">
         Equipo recomendado
         <input className="input" value={practical.gear} onChange={(e) => setP('gear', e.target.value)} />
+      </label>
+      <label className="field">
+        Comprobada sobre el terreno el
+        <span className="row nowrap">
+          <input
+            className="input grow"
+            type="date"
+            value={checked}
+            max={localDate()}
+            onChange={(e) => setChecked(e.target.value)}
+          />
+          <button type="button" className="btn small" onClick={() => setChecked(localDate())}>
+            Hoy
+          </button>
+          {checked && (
+            <button type="button" className="btn small" onClick={() => setChecked('')}>
+              Quitar
+            </button>
+          )}
+        </span>
+        <span className="muted small">
+          Ponla solo si has estado allí y la ficha práctica coincide con lo que viste. Vacía, la ficha se enseña como
+          sin verificar.
+        </span>
       </label>
 
       {error && (

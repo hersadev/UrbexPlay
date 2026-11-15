@@ -3,6 +3,7 @@ import { CATALOG } from '../catalog';
 import script from '../../google-apps-script/Code.gs?raw';
 import { clearSavedMaps, estimateMb, savedTileCount } from '../offline';
 import { exportBackup, importBackup } from '../store';
+import { MAP_IS_NOT_PERMISSION, RULES } from '../safety';
 import { localDate } from '../track';
 import { isScriptUrl, type SyncConfig, type SyncStatus } from '../sync';
 import type { Data } from '../types';
@@ -334,7 +335,8 @@ export default function Settings({
         <p className="prose">
           La historia y las coordenadas del catálogo inicial proceden de los artículos de Wikipedia enlazados en cada
           ficha. Las leyendas se presentan aparte, como lo que se cuenta y no como hechos. La ficha práctica es
-          orientativa: confirma siempre accesos y titularidad.
+          orientativa y, mientras no lleve fecha de comprobación, nadie la ha verificado sobre el terreno: confirma
+          siempre accesos y titularidad.
         </p>
         <p className="prose">
           Mapas: OpenStreetMap y el Instituto Geográfico Nacional (ortofoto PNOA y mapa topográfico, CC BY 4.0).
@@ -343,11 +345,11 @@ export default function Settings({
 
       <section className="warn">
         <strong>Explora con cabeza</strong>
+        <p>{MAP_IS_NOT_PERMISSION}</p>
         <ul>
-          <li>No entres en propiedad privada sin permiso ni fuerces cierres.</li>
-          <li>Nunca vayas solo y deja dicho a alguien dónde vas.</li>
-          <li>No entres en minas ni en edificios con riesgo de derrumbe.</li>
-          <li>No te lleves nada ni dejes nada: solo fotos.</li>
+          {RULES.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
         </ul>
       </section>
     </div>

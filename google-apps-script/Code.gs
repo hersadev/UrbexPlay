@@ -16,7 +16,7 @@ const HOJAS = {
   Lugares: [
     'id', 'nombre', 'tipo', 'lat', 'lng', 'aproximadas', 'municipio', 'provincia', 'resumen',
     'historia', 'leyenda', 'fuentes', 'estado', 'acceso', 'propiedad', 'dificultad', 'riesgos',
-    'aparcar', 'equipo', 'aparcamiento_coords', 'entrada_coords', 'actualizado', 'borrado',
+    'aparcar', 'equipo', 'aparcamiento_coords', 'entrada_coords', 'comprobado', 'actualizado', 'borrado',
   ],
   Diario: ['id', 'lugar', 'estado', 'notas', 'visitas', 'actualizado', 'borrado'],
   Salidas: [

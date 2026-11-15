@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bearing, cardinal, distanceKm, nearestOnLine } from '../geo';
+import { CATALOG } from '../catalog';
+import { checkedInfo, placeWarnings } from '../safety';
 import { sunTimes } from '../sun';
 import { toGpx, trackKm, trackMinutes } from '../track';
 import { makeZip, readZip } from '../zip';
@@ -119,5 +121,30 @@ describe('tiempo previsto', () => {
     expect(() => parseForecast({ error: true })).toThrow();
     expect(daysUntil('2026-11-21', '2026-11-14')).toBe(7);
     expect(daysUntil('2026-11-13', '2026-11-14')).toBe(-1);
+  });
+});
+
+describe('avisos de un lugar', () => {
+  const base = CATALOG[0];
+  const place = (ownership: 'publica' | 'privada' | 'desconocida', extra = {}) => ({
+    ...base,
+    practical: { ...base.practical, ownership, risks: '', difficulty: 1 as const },
+    approx: false,
+    ...extra,
+  });
+
+  it('pide no entrar en lo privado ni en lo que no se sabe de quién es', () => {
+    expect(placeWarnings(place('privada'))[0]).toMatch(/Propiedad privada: no entres/);
+    expect(placeWarnings(place('desconocida'))[0]).toMatch(/trátalo como privado/);
+  });
+
+  it('marca como sin verificar la ficha sin fecha y como antigua la de hace más de un año', () => {
+    expect(checkedInfo(place('publica'))).toBeNull();
+    expect(placeWarnings(place('publica')).join(' ')).toMatch(/sin verificar/);
+    const recent = place('publica', { checked: '2026-10-01' });
+    expect(checkedInfo(recent, '2026-11-15')).toMatchObject({ stale: false });
+    expect(placeWarnings(recent, '2026-11-15')).toHaveLength(1);
+    expect(checkedInfo(recent, '2028-01-01')?.stale).toBe(true);
+    expect(checkedInfo(place('publica', { checked: 'ayer' }))).toBeNull();
   });
 });

@@ -472,18 +472,21 @@ textarea.input {
   white-space: nowrap;
 }
 .tag.visitado,
+.tag.checked,
 .tag.own-publica,
 .tag.diff-1 {
   color: var(--ok);
   border-color: currentColor;
 }
 .tag.pendiente,
+.tag.stale,
 .tag.own-desconocida,
 .tag.diff-2 {
   color: var(--accent);
   border-color: currentColor;
 }
 .tag.own-privada,
+.tag.unchecked,
 .tag.diff-3 {
   color: var(--danger);
   border-color: currentColor;
@@ -778,6 +781,45 @@ textarea.input {
 .warn ul {
   margin: 6px 0 0;
   padding-left: 18px;
+}
+.warn p {
+  margin: 6px 0 0;
+}
+.warn li + li {
+  margin-top: 4px;
+}
+
+/* ── Diálogos ── */
+
+.modal {
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  overflow-y: auto;
+}
+.modal::backdrop {
+  background: rgb(0 0 0 / 0.72);
+}
+.modal h2 {
+  margin: 0 0 10px;
+  font: 600 1.3rem/1.25 var(--serif);
+}
+.modal p {
+  margin: 0 0 10px;
+}
+.modal ul {
+  margin: 0 0 14px;
+  padding-left: 18px;
+}
+.modal li + li {
+  margin-top: 6px;
+}
+.modal .row {
+  justify-content: flex-end;
 }
 
 /* ── Ajustes ── */

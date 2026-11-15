@@ -122,6 +122,16 @@ describe('mergeRemote', () => {
     const emptied = { Lugares: [{ ...newer.Lugares[0], aparcamiento_coords: '' }] };
     expect(mergeRemote(local, emptied).data.custom[0].parkingAt).toBeUndefined();
   });
+
+  it('lee la fecha de comprobación y la conserva si la hoja no tiene la columna', () => {
+    const row = { id: 'n1', nombre: 'Casa', lat: '37.5', lng: '-1.2', actualizado: '5', borrado: '' };
+    const checked = mergeRemote(emptyData(), { Lugares: [{ ...row, comprobado: '2026-11-03' }] }).data.custom[0];
+    expect(checked.checked).toBe('2026-11-03');
+    const local: Data = { ...emptyData(), custom: [checked], stamps: { 'p:n1': 5 } };
+    expect(mergeRemote(local, { Lugares: [{ ...row, actualizado: '9' }] }).data.custom[0].checked).toBe('2026-11-03');
+    const broken = { Lugares: [{ ...row, actualizado: '9', comprobado: 'ayer' }] };
+    expect(mergeRemote(local, broken).data.custom[0].checked).toBeUndefined();
+  });
 });
 
 describe('estado recordado de la hoja', () => {

@@ -2,9 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { CATALOG, isCatalogId, isOriginal } from './catalog';
 import {
   emptyData,
+  loadAcceptedNotice,
   loadCar,
   loadData,
   loadRecording,
+  saveAcceptedNotice,
   saveCar,
   saveData,
   saveRecording,
@@ -28,6 +30,7 @@ import {
   type SyncStatus,
 } from './sync';
 import { filterCount, noFilter, toggleType } from './filter';
+import { MAP_IS_NOT_PERMISSION, NOTICE_VERSION, RULES, placeWarnings } from './safety';
 import { paths, useNav, type Tab } from './nav';
 import {
   emptyDiary,
@@ -50,6 +53,7 @@ import PlaceForm from './components/PlaceForm';
 import ImportPlaces from './components/ImportPlaces';
 import Trips from './components/Trips';
 import Settings from './components/Settings';
+import Modal from './components/Modal';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'mapa', label: 'Mapa', icon: '◎' },
@@ -93,6 +97,10 @@ export default function App() {
   /** El mapa acompaña a la posición (se suelta al mover el mapa a mano). */
   const [follow, setFollow] = useState(false);
   const [guideRef, setGuideRef] = useState<GuideRef | null>(null);
+  /** Lugar al que se ha pedido guiar y cuyos avisos están a la vista, pendientes de confirmar. */
+  const [guideAsk, setGuideAsk] = useState<string | null>(null);
+  /** El aviso de bienvenida está aceptado en este dispositivo. */
+  const [accepted, setAccepted] = useState(false);
   /** La guía va a pie (último tramo, o porque se ha elegido así). */
   const [onFoot, setOnFoot] = useState(false);
   const [car, setCar] = useState<Car | null>(null);
@@ -139,8 +147,10 @@ export default function App() {
       loadSyncConfig(),
       loadCar().catch(() => undefined),
       loadRecording().catch(() => undefined),
+      loadAcceptedNotice().catch(() => undefined),
     ])
-      .then(([stored, config, parked, recording]) => {
+      .then(([stored, config, parked, recording, notice]) => {
+        setAccepted((notice ?? 0) >= NOTICE_VERSION);
         setData(stored);
         setSyncConfig(config ?? null);
         setCar(parked ?? null);
@@ -455,6 +465,21 @@ export default function App() {
     if (window.innerWidth < 900) nav.go(paths.tab('mapa'));
   };
 
+  const acceptNotice = () => {
+    setAccepted(true);
+    saveAcceptedNotice(NOTICE_VERSION).catch(() => {});
+  };
+
+  /** Da por comprobada hoy la ficha práctica; en un lugar del catálogo, guarda su copia editada. */
+  const markChecked = (place: Place) => {
+    const before = data.custom.find((p) => p.id === place.id);
+    const others = (d: Data) => d.custom.filter((p) => p.id !== place.id);
+    update((d) => ({ ...d, custom: [...others(d), { ...place, checked: localDate(), custom: true }] }));
+    setNotice('Ficha marcada como comprobada hoy.', {
+      undo: () => update((d) => ({ ...d, custom: before ? [...others(d), before] : others(d) })),
+    });
+  };
+
   const savePlace = (place: Place) => {
     update((d) => ({
       ...d,
@@ -714,7 +739,8 @@ export default function App() {
             shareUrl={isCatalogId(detail.id) ? location.href : undefined}
             onBack={() => nav.back(paths.tab('lugares'))}
             onShowOnMap={() => showOnMap(detail)}
-            onGuide={() => guideTo({ kind: 'lugar', id: detail.id })}
+            onGuide={() => setGuideAsk(detail.id)}
+            onChecked={() => markChecked(detail)}
             recording={rec ? (rec.placeId === detail.id ? 'aqui' : 'otro') : null}
             onRecord={() => startRecording(detail.id)}
             onStopRecord={stopRecording}
@@ -978,6 +1004,55 @@ export default function App() {
           </div>
         )}
       </section>
+
+      {loaded && !accepted && (
+        <Modal title="Antes de empezar">
+          <p>
+            UrbexPlay reúne lugares abandonados y con leyenda para conocer su historia. <strong>{MAP_IS_NOT_PERMISSION}</strong>
+          </p>
+          <ul>
+            {RULES.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+            <li>
+              Las fichas son orientativas y la mayoría no está verificada sobre el terreno: el estado, los accesos y la
+              titularidad cambian. Compruébalos antes de cada salida.
+            </li>
+          </ul>
+          <p className="muted">Lo que hagas en cada lugar es responsabilidad tuya.</p>
+          <div className="row">
+            <button className="btn primary" onClick={acceptNotice} autoFocus>
+              Lo entiendo y acepto
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {accepted && guideAsk && byId.get(guideAsk) && (
+        <Modal title={`Guiarme a ${byId.get(guideAsk)!.name}`} onClose={() => setGuideAsk(null)}>
+          <p>La guía te lleva hasta el lugar; no te autoriza a entrar.</p>
+          <ul>
+            {placeWarnings(byId.get(guideAsk)!).map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+          <div className="row">
+            <button className="btn" onClick={() => setGuideAsk(null)}>
+              Cancelar
+            </button>
+            <button
+              className="btn primary"
+              onClick={() => {
+                const id = guideAsk;
+                setGuideAsk(null);
+                guideTo({ kind: 'lugar', id });
+              }}
+            >
+              Entendido, guiarme
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {notice && (
         <div className="toast" role="status">

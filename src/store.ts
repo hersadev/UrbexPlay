@@ -7,6 +7,7 @@ const PHOTO_PREFIX = 'urbexplay:foto:';
 const TRACK_PREFIX = 'urbexplay:recorrido:';
 const CAR_KEY = 'urbexplay:coche';
 const RECORDING_KEY = 'urbexplay:grabando';
+const NOTICE_KEY = 'urbexplay:aviso';
 
 export const emptyData = (): Data => ({ custom: [], hidden: [], diary: {}, trips: [], stamps: {} });
 
@@ -103,6 +104,10 @@ export interface Recording {
   startedAt: number;
   points: TrackPoint[];
 }
+/** Versión del aviso de bienvenida aceptada en este dispositivo. */
+export const loadAcceptedNotice = () => get<number>(NOTICE_KEY);
+export const saveAcceptedNotice = (version: number) => set(NOTICE_KEY, version);
+
 export const loadRecording = () => get<Recording>(RECORDING_KEY);
 export const saveRecording = (rec: Recording | null) => (rec ? set(RECORDING_KEY, rec) : del(RECORDING_KEY));
 

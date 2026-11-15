@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { distanceKm, drivePoint, formatCoords, formatKm, googleMapsRoute } from '../geo';
 import { formatDuration } from '../road';
+import { checkedInfo, placeWarnings } from '../safety';
 import { deletePhoto, deleteTrack, getPhoto, getTrack, savePhoto, uid } from '../store';
 import { downloadGpx, localDate, trackKm, trackMinutes } from '../track';
 import {
@@ -42,6 +43,8 @@ interface Props {
   onBack: () => void;
   onShowOnMap: () => void;
   onGuide: () => void;
+  /** Da la ficha práctica por comprobada hoy sobre el terreno. */
+  onChecked: () => void;
   onEdit: () => void;
   onRemove: () => void;
   onRestore: () => void;
@@ -229,6 +232,7 @@ export default function PlaceDetail({
   onBack,
   onShowOnMap,
   onGuide,
+  onChecked,
   onEdit,
   onRemove,
   onRestore,
@@ -236,6 +240,8 @@ export default function PlaceDetail({
   const meta = TYPE_META[place.type];
   const diary = data.diary[place.id] ?? emptyDiary();
   const p = place.practical;
+  const warnings = placeWarnings(place);
+  const checked = checkedInfo(place);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   /** Fotos que enseña el visor y cuál de ellas. */
@@ -403,6 +409,15 @@ export default function PlaceDetail({
 
       <p className="lead">{place.summary}</p>
 
+      <div className="warn" role="note">
+        <strong>Antes de ir</strong>
+        <ul>
+          {warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      </div>
+
       <div className="row">
         <button className="btn toggle" aria-pressed={diary.status === 'pendiente'} onClick={() => setStatus('pendiente')}>
           ☆ Pendiente
@@ -479,6 +494,20 @@ export default function PlaceDetail({
 
       <section>
         <h2>Ficha práctica</h2>
+        <div className="row between">
+          <span className={`tag ${!checked ? 'unchecked' : checked.stale ? 'stale' : 'checked'}`}>
+            {!checked ? 'Sin verificar sobre el terreno' : checked.stale ? `${checked.label} · hace más de un año` : `✓ ${checked.label}`}
+          </span>
+          {place.checked !== today() && (
+            <button
+              className="btn small"
+              onClick={onChecked}
+              title="He estado allí hoy y la ficha práctica coincide con lo que he visto"
+            >
+              ✓ La he comprobado hoy
+            </button>
+          )}
+        </div>
         <dl className="facts">
           {p.state && (
             <>

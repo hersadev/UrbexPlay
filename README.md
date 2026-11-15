@@ -85,7 +85,20 @@ usar sin cobertura, con GPS.
   marcadas con `approx` son orientativas.
 - Las leyendas van en un campo aparte de la historia documentada.
 - La ficha práctica (estado, acceso, propiedad) es orientativa y hay que
-  confirmarla antes de cada salida.
+  confirmarla antes de cada salida. Se enseña como «sin verificar sobre el
+  terreno» hasta que alguien le pone fecha de comprobación, con «La he
+  comprobado hoy» en la ficha o al editarla; pasado un año, la comprobación se
+  marca como antigua. Las fichas del catálogo inicial no llevan fecha.
+
+## Avisos
+
+- Al abrir la app por primera vez hay que aceptar un aviso: que un lugar esté
+  en el mapa no significa que se pueda entrar, y en los privados no se entra
+  sin permiso. La aceptación se guarda en cada dispositivo.
+- Cada ficha abre con sus avisos (propiedad, riesgos, ficha sin verificar,
+  coordenadas aproximadas) y «Guiarme» los repite antes de empezar.
+- Los textos están en `src/safety.ts`; al subir `NOTICE_VERSION` se vuelve a
+  pedir que se acepte el aviso inicial.
 
 ## Mapas
 
@@ -113,8 +126,9 @@ de salida y el equipo marcado de cada salida viajan en las columnas `origen` y
 `equipo` de `Salidas`; una hoja con un script anterior a esas columnas sigue
 funcionando, pero no los pasa de un dispositivo a otro hasta actualizar el
 script. Lo mismo ocurre con las horas de salida y de vuelta (columnas
-`hora_salida` y `hora_vuelta` de `Salidas`) y con los puntos de aparcamiento y de entrada, en las
-columnas `aparcamiento_coords` y `entrada_coords` de `Lugares`. Se puede
+`hora_salida` y `hora_vuelta` de `Salidas`), con los puntos de aparcamiento y de entrada, en las
+columnas `aparcamiento_coords` y `entrada_coords` de `Lugares`, y con la fecha
+de comprobación de la ficha, en la columna `comprobado` (`AAAA-MM-DD`). Se puede
 editar la hoja a mano: una fila nueva en `Lugares` con nombre, `lat` y `lng`
 aparece en la app en la siguiente sincronización. Para borrar, escribe `TRUE`
 en la columna `borrado` en lugar de eliminar la fila.

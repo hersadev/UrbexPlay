@@ -46,6 +46,8 @@ export interface Place {
   parkingAt?: LatLng;
   /** Por dónde se entra: hasta aquí se guía a pie. */
   entryAt?: LatLng;
+  /** Día (`AAAA-MM-DD`) en que alguien comprobó la ficha práctica sobre el terreno. Sin él, está sin verificar. */
+  checked?: string;
   /** Creado o modificado por el usuario. */
   custom?: boolean;
 }
