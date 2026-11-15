@@ -788,6 +788,14 @@ textarea.input {
 .warn li + li {
   margin-top: 4px;
 }
+.reminder {
+  width: calc(100% - 32px);
+  max-width: 608px;
+  margin: 12px auto 0;
+}
+.reminder .row {
+  margin-top: 8px;
+}
 
 /* ── Diálogos ── */
 

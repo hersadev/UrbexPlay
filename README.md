@@ -79,6 +79,9 @@ usar sin cobertura, con GPS.
 - Todo se guarda en el navegador (IndexedDB). Desde **Ajustes** se exporta e
   importa una copia en ZIP, que incluye las fotos y los recorridos. Las copias
   antiguas en JSON se siguen pudiendo importar.
+- Si hay cambios y pasan 30 días sin exportar una copia, la app lo recuerda
+  con un aviso desde el que se exporta; «Más tarde» lo calla 7 días. Con la
+  hoja conectada solo avisa si hay fotos o recorridos, que no viajan a ella.
 - Opcionalmente se sincroniza con una hoja de cálculo de Google (ver más abajo).
 - El catálogo inicial está en `src/catalog.ts`. La historia y las coordenadas
   salen de los artículos de Wikipedia enlazados en cada ficha; las coordenadas

@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CATALOG, isCatalogId, isOriginal } from './catalog';
 import {
+  backupDue,
+  downloadBackup,
   emptyData,
   loadAcceptedNotice,
+  loadBackupInfo,
   loadCar,
   loadData,
   loadRecording,
   saveAcceptedNotice,
+  saveBackupInfo,
   saveCar,
   saveData,
   saveRecording,
   saveTrack,
   stampChanges,
   uid,
+  type BackupInfo,
   type Car,
   type Recording,
 } from './store';
@@ -101,6 +106,8 @@ export default function App() {
   const [guideAsk, setGuideAsk] = useState<string | null>(null);
   /** El aviso de bienvenida está aceptado en este dispositivo. */
   const [accepted, setAccepted] = useState(false);
+  const [backupInfo, setBackupInfo] = useState<BackupInfo>({});
+  const [exporting, setExporting] = useState(false);
   /** La guía va a pie (último tramo, o porque se ha elegido así). */
   const [onFoot, setOnFoot] = useState(false);
   const [car, setCar] = useState<Car | null>(null);
@@ -148,8 +155,10 @@ export default function App() {
       loadCar().catch(() => undefined),
       loadRecording().catch(() => undefined),
       loadAcceptedNotice().catch(() => undefined),
+      loadBackupInfo().catch((): BackupInfo => ({})),
     ])
-      .then(([stored, config, parked, recording, notice]) => {
+      .then(([stored, config, parked, recording, notice, backup]) => {
+        setBackupInfo(backup);
         setAccepted((notice ?? 0) >= NOTICE_VERSION);
         setData(stored);
         setSyncConfig(config ?? null);
@@ -470,6 +479,26 @@ export default function App() {
     saveAcceptedNotice(NOTICE_VERSION).catch(() => {});
   };
 
+  const changeBackupInfo = (info: BackupInfo) => {
+    setBackupInfo(info);
+    saveBackupInfo(info).catch(() => {});
+  };
+
+  const exportCopy = async () => {
+    setExporting(true);
+    try {
+      await downloadBackup(data, `urbexplay-${localDate()}.zip`);
+      changeBackupInfo({ at: Date.now() });
+    } catch {
+      setNotice('No se ha podido crear la copia.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const backupReminder = loaded && accepted && backupDue(data, backupInfo, !!syncConfig);
+  const daysWithoutBackup = backupInfo.at ? Math.floor((Date.now() - backupInfo.at) / 86400000) : null;
+
   /** Da por comprobada hoy la ficha práctica; en un lugar del catálogo, guarda su copia editada. */
   const markChecked = (place: Place) => {
     const before = data.custom.find((p) => p.id === place.id);
@@ -688,7 +717,7 @@ export default function App() {
         {TABS.map((t) => (
           <button
             key={t.id}
-            className={`nav-btn${t.id === 'ajustes' && syncStatus.state === 'error' ? ' alert' : ''}`}
+            className={`nav-btn${t.id === 'ajustes' && (syncStatus.state === 'error' || backupReminder) ? ' alert' : ''}`}
             aria-current={tab === t.id ? 'page' : undefined}
             onClick={() => nav.go(paths.tab(t.id))}
           >
@@ -706,6 +735,29 @@ export default function App() {
         ref={panel}
         onScroll={(e) => scrolls.current.set(shown.current.hash, e.currentTarget.scrollTop)}
       >
+        {backupReminder && !importing && !editing && (
+          <div className="warn reminder" role="status">
+            <strong>
+              {daysWithoutBackup === null
+                ? 'Aún no has guardado ninguna copia de seguridad'
+                : `Llevas ${daysWithoutBackup} días sin guardar una copia de seguridad`}
+            </strong>
+            <p>
+              {syncConfig
+                ? 'Tus fotos y recorridos solo están en este dispositivo: no viajan a la hoja.'
+                : 'Tus lugares, notas, salidas y fotos solo están en este dispositivo.'}{' '}
+              Si se borran los datos del navegador o cambias de móvil, se pierden.
+            </p>
+            <div className="row">
+              <button className="btn small primary" onClick={exportCopy} disabled={exporting}>
+                Exportar copia
+              </button>
+              <button className="btn small" onClick={() => changeBackupInfo({ ...backupInfo, snoozed: Date.now() })}>
+                Más tarde
+              </button>
+            </div>
+          </div>
+        )}
         {importing ? (
           <ImportPlaces places={places} onImport={importPlaces} onCancel={() => nav.back(paths.tab('lugares'))} />
         ) : editing ? (
@@ -770,6 +822,9 @@ export default function App() {
           <Settings
             data={data}
             setData={(next) => update(() => next)}
+            onExport={exportCopy}
+            onImported={() => changeBackupInfo({ at: Date.now() })}
+            backupAt={backupInfo.at}
             placeCount={places.length}
             setNotice={setNotice}
             syncConfig={syncConfig}

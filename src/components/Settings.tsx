@@ -2,15 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { CATALOG } from '../catalog';
 import script from '../../google-apps-script/Code.gs?raw';
 import { clearSavedMaps, estimateMb, savedTileCount } from '../offline';
-import { exportBackup, importBackup } from '../store';
+import { importBackup } from '../store';
 import { MAP_IS_NOT_PERMISSION, RULES } from '../safety';
-import { localDate } from '../track';
 import { isScriptUrl, type SyncConfig, type SyncStatus } from '../sync';
 import type { Data } from '../types';
 
 interface Props {
   data: Data;
   setData: (data: Data) => void;
+  /** Exporta la copia de seguridad. */
+  onExport: () => Promise<void>;
+  /** Se acaba de importar una copia: lo que hay ya está guardado en un fichero. */
+  onImported: () => void;
+  /** Momento (ms) de la última copia exportada en este dispositivo. */
+  backupAt?: number;
   placeCount: number;
   setNotice: (text: string) => void;
   syncConfig: SyncConfig | null;
@@ -170,6 +175,9 @@ function SyncSection({ config, status, onConfig, onSync, setNotice, catalogPendi
 export default function Settings({
   data,
   setData,
+  onExport,
+  onImported,
+  backupAt,
   placeCount,
   setNotice,
   syncConfig,
@@ -194,15 +202,7 @@ export default function Settings({
   const download = async () => {
     setBusy(true);
     try {
-      const blob = await exportBackup(data);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `urbexplay-${localDate()}.zip`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      setNotice('No se ha podido crear la copia.');
+      await onExport();
     } finally {
       setBusy(false);
     }
@@ -214,6 +214,7 @@ export default function Settings({
     setBusy(true);
     try {
       setData(await importBackup(file));
+      onImported();
       setNotice('Copia importada.');
     } catch (e) {
       setNotice(e instanceof Error ? e.message : 'No se ha podido importar la copia.');
@@ -263,6 +264,12 @@ export default function Settings({
         <p className="prose">
           Un fichero ZIP con todo lo de este dispositivo: tus lugares, notas, salidas y también las fotos y los recorridos, que no
           viajan con la sincronización. Importarlo sustituye lo que haya.
+        </p>
+        <p className="muted small">
+          {backupAt
+            ? `Última copia exportada en este dispositivo: ${new Date(backupAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.`
+            : 'Todavía no has exportado ninguna copia en este dispositivo.'}{' '}
+          Si llevas un mes con cambios sin guardar, la app te lo recuerda.
         </p>
         <div className="row">
           <button className="btn primary" onClick={download} disabled={busy}>

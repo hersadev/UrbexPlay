@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyData, stampChanges } from '../store';
+import { backupDue, emptyData, stampChanges } from '../store';
 import type { Data, Place, Trip } from '../types';
 
 const place = (id: string, name = id) => ({ id, name }) as unknown as Place;
@@ -38,5 +38,38 @@ describe('stampChanges', () => {
     });
     for (const key of ['p:b', 'p:c', 'h:h1', 't:t1']) expect(next.stamps[key]).toBeGreaterThan(1);
     expect(next.stamps['p:a']).toBe(1);
+  });
+});
+
+describe('recordatorio de copia', () => {
+  const DAY = 86400000;
+  const now = 100 * DAY;
+  const withStamp = (stamp: number, photos: string[] = []): Data => ({
+    ...emptyData(),
+    diary: { x: { status: 'visitado', notes: '', visits: [{ id: 'v', date: '2026-01-01', notes: '', photos }] } },
+    stamps: { 'd:x': stamp },
+  });
+
+  it('no avisa sin datos ni antes de que pase el plazo', () => {
+    expect(backupDue(emptyData(), {}, false, now)).toBe(false);
+    expect(backupDue(withStamp(now - 5 * DAY), {}, false, now)).toBe(false);
+    expect(backupDue(withStamp(now - 40 * DAY), {}, false, now)).toBe(true);
+  });
+
+  it('cuenta desde la última copia y solo si hay cambios posteriores', () => {
+    expect(backupDue(withStamp(now - 50 * DAY), { at: now - 40 * DAY }, false, now)).toBe(false);
+    expect(backupDue(withStamp(now - DAY), { at: now - 40 * DAY }, false, now)).toBe(true);
+    expect(backupDue(withStamp(now - DAY), { at: now - 10 * DAY }, false, now)).toBe(false);
+  });
+
+  it('calla una semana al posponerlo', () => {
+    const data = withStamp(now - 40 * DAY);
+    expect(backupDue(data, { snoozed: now - 2 * DAY }, false, now)).toBe(false);
+    expect(backupDue(data, { snoozed: now - 8 * DAY }, false, now)).toBe(true);
+  });
+
+  it('con la hoja conectada solo avisa si hay fotos o recorridos', () => {
+    expect(backupDue(withStamp(now - 40 * DAY), {}, true, now)).toBe(false);
+    expect(backupDue(withStamp(now - 40 * DAY, ['f1']), {}, true, now)).toBe(true);
   });
 });

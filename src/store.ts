@@ -8,6 +8,7 @@ const TRACK_PREFIX = 'urbexplay:recorrido:';
 const CAR_KEY = 'urbexplay:coche';
 const RECORDING_KEY = 'urbexplay:grabando';
 const NOTICE_KEY = 'urbexplay:aviso';
+const BACKUP_KEY = 'urbexplay:copia';
 
 export const emptyData = (): Data => ({ custom: [], hidden: [], diary: {}, trips: [], stamps: {} });
 
@@ -195,4 +196,48 @@ export async function importBackup(file: File): Promise<Data> {
     if (stale) await del(key);
   }
   return data;
+}
+
+// ── Recordatorio de copia ──
+
+/** Cuándo se exportó la última copia en este dispositivo y cuándo se pospuso el recordatorio (ms). */
+export interface BackupInfo {
+  at?: number;
+  snoozed?: number;
+}
+
+export const loadBackupInfo = async (): Promise<BackupInfo> => (await get<BackupInfo>(BACKUP_KEY)) ?? {};
+export const saveBackupInfo = (info: BackupInfo) => set(BACKUP_KEY, info);
+
+const DAY = 86400000;
+/** Días sin copia, habiendo cambios, a partir de los cuales se recuerda exportarla. */
+export const BACKUP_EVERY_DAYS = 30;
+/** Días que calla el recordatorio al pulsar «Más tarde». */
+export const BACKUP_SNOOZE_DAYS = 7;
+
+/**
+ * Toca recordar la copia: hay cambios posteriores a la última y ha pasado el
+ * plazo. Con la hoja conectada solo se recuerda si hay fotos o recorridos,
+ * que son lo único que no viaja a ella.
+ */
+export function backupDue(data: Data, info: BackupInfo, synced: boolean, now = Date.now()): boolean {
+  const stamps = Object.values(data.stamps);
+  if (!stamps.length) return false;
+  const onlyHere = Object.values(data.diary).some((d) => d.visits.some((v) => v.photos.length > 0 || !!v.track));
+  if (synced && !onlyHere) return false;
+  if (info.at && Math.max(...stamps) <= info.at) return false;
+  // Sin copia previa cuenta desde el primer dato guardado.
+  const since = info.at ?? Math.min(...stamps);
+  if (now - since < BACKUP_EVERY_DAYS * DAY) return false;
+  return !info.snoozed || now - info.snoozed >= BACKUP_SNOOZE_DAYS * DAY;
+}
+
+/** Crea la copia y la entrega como descarga. */
+export async function downloadBackup(data: Data, name: string): Promise<void> {
+  const url = URL.createObjectURL(await exportBackup(data));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
